@@ -28,6 +28,7 @@ import {
   normalizeWorkingHoursPerDay,
   parseTimeInputValue,
 } from '@shared/salaryForm'
+import { getScheduledNotifications } from '@shared/notifications'
 import { sanitizeSettings } from '@shared/settings'
 
 const [outputPath, reference] = process.argv.slice(2)
@@ -340,6 +341,50 @@ const drafts = DRAFT_SCHEDULES.flatMap(([startHour, endHour, workingHoursPerDay]
   })
 )
 
+// getScheduledNotifications: the end of yesterday's and today's working
+// windows and payday at the start time, for a few settings and instants
+const NOTIFICATION_SETTINGS: Record<string, Record<string, unknown>> = {
+  office: { monthlySalary: 54321, payday: 29 },
+  overnight: { monthlySalary: 54321, startHour: '22:00', endHour: '06:00', payday: 30 },
+  noEnd: { monthlySalary: 54321, startHour: '10:00', endHour: '', workingHoursPerDay: 7.5, payday: 2 },
+  lastDayPayday: { monthlySalary: 54321, payday: 31 },
+  fewDays: { monthlySalary: 54321, workingDays: 3, payday: 1 },
+  endOfDayOnly: { monthlySalary: 54321, payday: 29, notifyPayday: false },
+  paydayOnly: { monthlySalary: 54321, payday: 29, notifyEndOfDay: false },
+  unpaid: { monthlySalary: 0, payday: 29 },
+}
+const NOTIFICATION_INSTANTS: number[][] = [
+  [2026, 10, 29, 8, 0, 0, 0],
+  [2026, 10, 29, 17, 0, 0, 0],
+  [2026, 10, 29, 23, 30, 0, 0],
+  [2026, 10, 30, 3, 0, 0, 0],
+  [2026, 10, 31, 7, 0, 0, 0],
+  [2026, 11, 2, 9, 0, 0, 0],
+  [2026, 11, 3, 12, 0, 0, 0],
+  [2026, 11, 30, 12, 0, 0, 0],
+  [2026, 2, 28, 10, 0, 0, 0],
+  [2026, 3, 30, 1, 0, 0, 0],
+  [2026, 12, 31, 18, 0, 0, 0],
+]
+const notifications = ['Europe/Kyiv', 'America/New_York'].flatMap((timeZone) => {
+  setTimeZone(timeZone)
+
+  return Object.entries(NOTIFICATION_SETTINGS).flatMap(([name, raw]) =>
+    NOTIFICATION_INSTANTS.map(([y, mo, d, h, mi, s, ms]) => {
+      const now = new Date(y, mo - 1, d, h, mi, s, ms).getTime()
+
+      return {
+        timeZone,
+        settings: name,
+        now,
+        scheduled: getScheduledNotifications(dayjs(now), sanitizeSettings(raw)).map(
+          ({ kind, key, at }) => ({ kind, key, at: at.valueOf() })
+        ),
+      }
+    })
+  )
+})
+
 // Inputs JSON can't hold go in as strings
 const NORMALIZER_INPUTS: (number | string)[] = [
   -5, -0.5, 0, 0.25, 0.5, 1, 1.5, 7.9, 8, 15.7, 22, 23.99, 24, 24.5, 31, 31.5,
@@ -426,6 +471,8 @@ writeFileSync(
   "currency": ${lines(currency)},
   "currencyParts": ${lines(currencyParts)},
   "drafts": ${lines(drafts)},
+  "notificationSettings": ${JSON.stringify(NOTIFICATION_SETTINGS)},
+  "notifications": ${lines(notifications)},
   "normalizers": ${lines(normalizers)},
   "times": ${lines(times)},
   "settings": ${lines(settings)}

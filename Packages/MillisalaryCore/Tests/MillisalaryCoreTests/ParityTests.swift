@@ -127,6 +127,19 @@ private struct Fixture: Decodable {
         let after: Result
     }
 
+    struct NotificationCase: Decodable {
+        struct Scheduled: Decodable {
+            let kind: String
+            let key: String
+            let at: Double
+        }
+
+        let timeZone: String
+        let settings: String
+        let now: Double
+        let scheduled: [Scheduled]
+    }
+
     struct NormalizerCase: Decodable {
         /// NaN and the infinities come as strings
         let input: Double
@@ -185,6 +198,7 @@ private struct Fixture: Decodable {
     let currency: [CurrencyCase]
     let currencyParts: [CurrencyPartsCase]
     let drafts: [DraftCase]
+    let notifications: [NotificationCase]
     let normalizers: [NormalizerCase]
     let times: [TimeCase]
     let settings: [ExpectedSettings]
@@ -307,6 +321,24 @@ private func milliseconds(_ date: Date) -> Double {
         #expect(settings.workingHoursPerDay == after.workingHoursPerDay, "hours a day, \(label)")
         #expect(settings.workingDays == after.workingDays, "working days, \(label)")
         #expect(settings.payday == after.payday, "payday, \(label)")
+    }
+}
+
+@Test func notificationScheduleMatchesTypeScript() throws {
+    #expect(fixture.notifications.count > 100)
+    // The settings are raw objects, so through the validator like the TS
+    let json = try JSONSerialization.jsonObject(with: fixtureData) as! [String: Any]
+    let rawSettings = json["notificationSettings"] as! [String: Any]
+
+    for item in fixture.notifications {
+        let model = EarningsModel(calendar: calendar(in: item.timeZone))
+        let settings = Settings(sanitizing: rawSettings[item.settings])
+        let now = Date(timeIntervalSince1970: item.now / 1000)
+
+        let actual = model.scheduledNotifications(around: now, settings: settings)
+            .map { "\($0.kind.rawValue) \($0.key) \(Int(milliseconds($0.at)))" }
+        let expected = item.scheduled.map { "\($0.kind) \($0.key) \(Int($0.at))" }
+        #expect(actual == expected, "\(item.settings) at \(Int(item.now)) in \(item.timeZone)")
     }
 }
 

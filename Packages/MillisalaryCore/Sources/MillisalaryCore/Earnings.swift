@@ -269,7 +269,7 @@ public struct EarningsModel: Sendable {
     }
 
     /// add(n, 'day'): the same wall-clock time n calendar days later
-    private func adding(days: Int, to date: Date) -> Date {
+    func adding(days: Int, to date: Date) -> Date {
         calendar.date(byAdding: .day, value: days, to: date)!
     }
 
