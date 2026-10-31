@@ -34,7 +34,7 @@ esac
 owner="${repo%%/*}"
 account="$(gh api user --jq .login)"
 if [ "$account" != "$owner" ]; then
-  echo "gh is using ${account}, not ${owner}: run 'gh auth switch --user ${owner}'." >&2
+  echo "gh is using ${account}, not ${owner}: run it as GH_TOKEN=\"\$(gh auth token --user ${owner})\" scripts/release.sh" >&2
   exit 1
 fi
 if gh release view "$tag" --repo "$repo" >/dev/null 2>&1; then
