@@ -2,8 +2,9 @@ import Foundation
 import MillisalaryCore
 
 /// The settings of the Electron Millisalary this app replaces, taken over
-/// once: on the first launch, when nothing has been stored here yet. Its
-/// settings.json is only read, never changed.
+/// once: on the first launch, when nothing has been stored here yet, with
+/// the exchange rates it had cached. Its settings.json is only read, never
+/// changed.
 enum ElectronSettingsImport {
     private static let doneKey = "didImportElectronSettings"
 
@@ -11,13 +12,14 @@ enum ElectronSettingsImport {
     /// "electron-millisalary" for a dev checkout
     private static let folders = ["Millisalary", "electron-millisalary"]
 
-    static func runIfNeeded(into store: SettingsStore, defaults: UserDefaults = .standard) {
+    static func runIfNeeded(into store: SettingsStore, rates: ExchangeRateStore, defaults: UserDefaults = .standard) {
         guard !defaults.bool(forKey: doneKey) else { return }
         // Asked once, whether or not there was anything to take
         defaults.set(true, forKey: doneKey)
         guard !store.hasStoredSettings, let raw = newestSettingsFile() else { return }
 
         store.replace(with: Settings(sanitizing: raw))
+        rates.importCache(sanitizeRates(raw["exchangeRates"]))
     }
 
     /// The most recently saved settings.json, as JSON values

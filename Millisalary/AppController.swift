@@ -12,6 +12,7 @@ final class AppController {
     let store = SettingsStore()
     let navigation = Navigation()
     let ticker = Ticker()
+    let rates = ExchangeRateStore()
     private var statusItem: StatusItemController?
 
     /// SwiftUI's way to open the main window (a `Window` scene), which the
@@ -22,8 +23,16 @@ final class AppController {
     func start() {
         // One window, no tabs (and no tab items in the View and Window menus)
         NSWindow.allowsAutomaticWindowTabbing = false
-        ElectronSettingsImport.runIfNeeded(into: store)
-        statusItem = StatusItemController(store: store) { [weak self] pane in
+        ElectronSettingsImport.runIfNeeded(into: store, rates: rates)
+        followRatePair()
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.rates.refresh() }
+        }
+        statusItem = StatusItemController(store: store, rates: rates) { [weak self] pane in
             self?.show(pane)
         }
         followTheme()
@@ -49,6 +58,15 @@ final class AppController {
     func showPeriod(_ period: Period) {
         store.update { $0.selectedPeriod = period }
         show(.earnings)
+    }
+
+    /// The exchange rate follows the currencies in the settings
+    private func followRatePair() {
+        withObservationTracking {
+            rates.follow(store.settings.ratePair)
+        } onChange: { [weak self] in
+            Task { @MainActor in self?.followRatePair() }
+        }
     }
 
     /// The appearance setting, applied to the whole app

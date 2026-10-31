@@ -7,25 +7,27 @@ import SwiftUI
 struct EarningsView: View {
     @Environment(SettingsStore.self) private var store
     @Environment(Navigation.self) private var navigation
+    @Environment(ExchangeRateStore.self) private var rates
     @Environment(Ticker.self) private var ticker
 
     var body: some View {
         let settings = store.settings
-        let earnings = settings.earnings(at: ticker.now)
+        let display = settings.amountDisplay(rates)
+        let earnings = settings.earnings(at: ticker.now, display)
         let period = settings.selectedPeriod
 
         VStack(spacing: 0) {
             EarningsDial(
                 earned: earnings[period].earned,
                 total: earnings[period].total,
-                currency: settings.displayCurrency,
+                currency: display.currency,
                 period: period
             )
             .frame(minWidth: 176, maxWidth: 384, maxHeight: .infinity)
             .padding(.vertical, 16)
 
             if settings.monthlySalary > 0 {
-                StatsRow(earnings: earnings, currency: settings.displayCurrency)
+                StatsRow(earnings: earnings, currency: display.currency)
             } else {
                 SetupHint { navigation.pane = .settings }
             }

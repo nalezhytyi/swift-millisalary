@@ -5,14 +5,16 @@ import SwiftUI
 /// the rate
 struct BreakdownView: View {
     @Environment(SettingsStore.self) private var store
+    @Environment(ExchangeRateStore.self) private var rates
     @Environment(Ticker.self) private var ticker
 
     private static let english = Locale(identifier: "en_US")
 
     var body: some View {
         let settings = store.settings
-        let earnings = settings.earnings(at: ticker.now)
-        let currency = settings.displayCurrency
+        let display = settings.amountDisplay(rates)
+        let earnings = settings.earnings(at: ticker.now, display)
+        let currency = display.currency
         let money = { (amount: Double) in formatCurrency(amount, currency: currency) }
 
         Form {
@@ -71,11 +73,26 @@ struct BreakdownView: View {
             } header: {
                 Text("Your rate")
             } footer: {
-                Text("Pay is spread evenly over each working day (Mon-Fri) between your start and end time.")
-                    .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Pay is spread evenly over each working day (Mon-Fri) between your start and end time.")
+                    if let exchange = exchangeRateNote(settings.ratePair, display) {
+                        Text(exchange)
+                    }
+                }
+                .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
+    }
+
+    /// The rate in use when the currencies differ, or why there's none yet
+    private func exchangeRateNote(_ pair: CurrencyPair, _ display: AmountDisplay) -> String? {
+        guard !pair.isSameCurrency else { return nil }
+        guard display.currency == pair.to else {
+            return "Amounts are in \(pair.from) until the \(pair.from) to \(pair.to) exchange rate arrives."
+        }
+        let rate = display.exchangeRate.formatted(.number.precision(.fractionLength(0...4)))
+        return "Exchange rate: 1 \(pair.from) = \(rate) \(pair.to)."
     }
 
     private func rate(_ label: String, _ amount: String) -> some View {

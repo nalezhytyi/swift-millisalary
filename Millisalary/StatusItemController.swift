@@ -9,6 +9,7 @@ import Observation
 /// can be updated in place
 final class StatusItemController: NSObject {
     private let store: SettingsStore
+    private let rates: ExchangeRateStore
     private let open: (Pane?) -> Void
     private let model = EarningsModel()
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -17,8 +18,9 @@ final class StatusItemController: NSObject {
     private var content: MenuBarContent?
 
     /// `open` shows the main window, on a pane when one is given
-    init(store: SettingsStore, open: @escaping (Pane?) -> Void) {
+    init(store: SettingsStore, rates: ExchangeRateStore, open: @escaping (Pane?) -> Void) {
         self.store = store
+        self.rates = rates
         self.open = open
         super.init()
 
@@ -49,6 +51,7 @@ final class StatusItemController: NSObject {
     private func observeSettings() {
         withObservationTracking {
             _ = store.settings
+            _ = rates.current
         } onChange: { [weak self] in
             Task { @MainActor in
                 self?.refresh()
@@ -63,10 +66,11 @@ final class StatusItemController: NSObject {
             statusItem.isVisible = settings.showInMenuBar
         }
 
+        let display = settings.amountDisplay(rates)
         let next = MenuBarContent(
             settings: settings,
-            earnings: settings.monthlySalary > 0 ? settings.earnings(at: Clock.now, model: model) : nil,
-            currency: settings.displayCurrency
+            earnings: settings.monthlySalary > 0 ? settings.earnings(at: Clock.now, display, model: model) : nil,
+            currency: display.currency
         )
         guard next != content else { return }
 

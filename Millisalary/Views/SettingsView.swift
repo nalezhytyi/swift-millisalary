@@ -3,9 +3,8 @@ import SwiftUI
 
 /// The settings, laid out like a System Settings pane. Every edit applies at
 /// once; the schedule's Start, End and hours a day keep each other in step
-/// (Settings.setStartHour and friends). Only what works so far is here: the
-/// display currency comes with the exchange rate, Open at login and the
-/// notifications with theirs
+/// (Settings.setStartHour and friends). Only what works so far is here:
+/// Open at login and the notifications come with their features
 struct SettingsView: View {
     @Environment(SettingsStore.self) private var store
 
@@ -25,10 +24,15 @@ struct SettingsView: View {
                         Text($0)
                     }
                 }
+                Picker("Display currency", selection: binding(\.earningsCurrency)) {
+                    ForEach(withCurrent(Self.currencies, settings.earningsCurrency), id: \.self) {
+                        Text($0)
+                    }
+                }
             } header: {
                 Text("Salary")
             } footer: {
-                footer("Your monthly salary is spread over your working days and hours.")
+                footer("Your monthly salary is spread over your working days and hours. Earnings are shown in the display currency.")
             }
 
             Section {
