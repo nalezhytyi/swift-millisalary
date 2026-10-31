@@ -13,12 +13,26 @@ final class AppController {
     let navigation = Navigation()
     let ticker = Ticker()
     let rates = ExchangeRateStore()
+    private(set) lazy var notifications = NotificationController(store: store, rates: rates) { [weak self] in
+        self?.show()
+    }
+    private(set) lazy var loginItem = LoginItemController(store: store)
     private var statusItem: StatusItemController?
 
     /// SwiftUI's way to open the main window (a `Window` scene), which the
     /// app menu's commands hand over: AppKit code like the menu bar item
     /// can't get it from a view's environment
     var openWindow: OpenWindowAction?
+
+    /// Before the first window: whether it should stay closed (started at
+    /// login: the menu bar item only), and the notification delegate, which
+    /// UserNotifications wants set before launch finishes
+    func prepareLaunch(launchEvent: NSAppleEventDescriptor?) {
+        _ = notifications
+        if LoginItemController.wasLaunchedAtLogin(launchEvent: launchEvent, settingOn: store.settings.launchAtLogin) {
+            navigation.hideOnLaunch = true
+        }
+    }
 
     func start() {
         // One window, no tabs (and no tab items in the View and Window menus)
@@ -36,6 +50,8 @@ final class AppController {
             self?.show(pane)
         }
         followTheme()
+        loginItem.start()
+        notifications.start()
         #if DEBUG
         if let pane = Self.debugLaunchPane {
             navigation.pane = pane

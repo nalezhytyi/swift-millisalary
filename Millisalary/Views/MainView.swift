@@ -6,6 +6,7 @@ import SwiftUI
 struct MainView: View {
     @Environment(SettingsStore.self) private var store
     @Environment(Navigation.self) private var navigation
+    @Environment(\.dismissWindow) private var dismissWindow
 
     var body: some View {
         @Bindable var navigation = navigation
@@ -19,6 +20,13 @@ struct MainView: View {
         }
         .frame(minWidth: 520, minHeight: 460)
         .background(TickWhileVisible())
+        .onAppear {
+            // Started at login: the menu bar item only, until asked
+            if navigation.hideOnLaunch {
+                navigation.hideOnLaunch = false
+                dismissWindow(id: AppController.mainWindowID)
+            }
+        }
     }
 
     private var selected: SidebarItem {

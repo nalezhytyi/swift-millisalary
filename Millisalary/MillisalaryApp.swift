@@ -16,6 +16,8 @@ struct MillisalaryApp: App {
                 .environment(app.navigation)
                 .environment(app.ticker)
                 .environment(app.rates)
+                .environment(app.notifications)
+                .environment(app.loginItem)
         }
         .defaultSize(width: 820, height: 580)
         .windowResizability(.contentMinSize)
@@ -27,6 +29,10 @@ struct MillisalaryApp: App {
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let app = AppController()
+
+    func applicationWillFinishLaunching(_ notification: Notification) {
+        app.prepareLaunch(launchEvent: NSAppleEventManager.shared().currentAppleEvent)
+    }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         app.start()

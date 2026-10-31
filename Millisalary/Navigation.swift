@@ -44,6 +44,9 @@ enum SidebarItem: Hashable {
 final class Navigation {
     var pane = Pane.earnings
     var columnVisibility = NavigationSplitViewVisibility.all
+    /// Set when the app was started at login: the window SwiftUI opens at
+    /// launch closes again at once
+    var hideOnLaunch = false
 
     func toggleSidebar() {
         columnVisibility = columnVisibility == .detailOnly ? .all : .detailOnly

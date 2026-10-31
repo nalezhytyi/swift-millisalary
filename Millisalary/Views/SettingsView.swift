@@ -1,12 +1,14 @@
 import MillisalaryCore
+import ServiceManagement
 import SwiftUI
 
 /// The settings, laid out like a System Settings pane. Every edit applies at
 /// once; the schedule's Start, End and hours a day keep each other in step
-/// (Settings.setStartHour and friends). Only what works so far is here:
-/// Open at login and the notifications come with their features
+/// (Settings.setStartHour and friends)
 struct SettingsView: View {
     @Environment(SettingsStore.self) private var store
+    @Environment(NotificationController.self) private var notifications
+    @Environment(LoginItemController.self) private var loginItem
 
     private static let currencies = ["UAH", "USD", "EUR", "PLN", "CZK", "RON"]
     private static let days = (1...31).map(Double.init)
@@ -69,7 +71,46 @@ struct SettingsView: View {
             }
 
             Section {
+                Toggle("Open at login", isOn: binding(\.launchAtLogin))
+                    .toggleStyle(.switch)
+            } header: {
+                Text("General")
+            } footer: {
+                VStack(alignment: .leading, spacing: 6) {
+                    footer("Opens in the menu bar when your Mac starts, without showing the window.")
+                    if !LoginItemController.isManaged {
+                        footer("This Debug build doesn't register itself: only a Release build does.")
+                    } else if settings.launchAtLogin && loginItem.status == .requiresApproval {
+                        footer("Allow Millisalary under Login Items in System Settings.")
+                        Button("Open Login Items Settings…") {
+                            SMAppService.openSystemSettingsLoginItems()
+                        }
+                    }
+                }
+            }
+
+            Section {
+                Toggle("End of the workday", isOn: binding(\.notifyEndOfDay))
+                    .toggleStyle(.switch)
+                Toggle("Payday", isOn: binding(\.notifyPayday))
+                    .toggleStyle(.switch)
+            } header: {
+                Text("Notifications")
+            } footer: {
+                VStack(alignment: .leading, spacing: 6) {
+                    footer("Sent while the app is running, including when only the menu bar item is showing.")
+                    if notifications.authorization == .denied && (settings.notifyEndOfDay || settings.notifyPayday) {
+                        footer("Notifications are turned off for Millisalary in System Settings.")
+                        Button("Open Notification Settings…") {
+                            notifications.openSystemSettings()
+                        }
+                    }
+                }
+            }
+
+            Section {
                 Toggle("Show in menu bar", isOn: binding(\.showInMenuBar))
+                    .toggleStyle(.switch)
                 Picker("Amount", selection: binding(\.menuBarAmount)) {
                     Text("Today").tag(MenuBarAmount.day)
                     Text("Selected period").tag(MenuBarAmount.selected)
