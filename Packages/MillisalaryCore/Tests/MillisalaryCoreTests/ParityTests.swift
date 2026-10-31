@@ -76,6 +76,57 @@ private struct Fixture: Decodable {
         let text: String
     }
 
+    struct CurrencyPartsCase: Decodable {
+        struct Parts: Decodable {
+            let symbol: String
+            let symbolPosition: String
+            let sign: String
+            let integer: String
+            let decimal: String
+            let fraction: String
+        }
+
+        let amount: Double
+        let currency: String
+        let digits: Int
+        let parts: Parts
+    }
+
+    struct DraftCase: Decodable {
+        struct Schedule: Decodable {
+            let startHour: String
+            let endHour: String
+            let workingHoursPerDay: Double
+        }
+
+        struct Result: Decodable {
+            let startHour: String
+            let endHour: String
+            let workingHoursPerDay: Double
+            let workingDays: Double
+            let payday: Int
+        }
+
+        enum Value: Decodable {
+            case time(String)
+            case number(Double)
+
+            init(from decoder: Decoder) throws {
+                let value = try decoder.singleValueContainer()
+                if let number = try? value.decode(Double.self) {
+                    self = .number(number)
+                } else {
+                    self = .time(try value.decode(String.self))
+                }
+            }
+        }
+
+        let before: Schedule
+        let field: String
+        let value: Value
+        let after: Result
+    }
+
     struct NormalizerCase: Decodable {
         /// NaN and the infinities come as strings
         let input: Double
@@ -132,6 +183,8 @@ private struct Fixture: Decodable {
     let earnings: [EarningsCase]
     let paydays: [PaydayCase]
     let currency: [CurrencyCase]
+    let currencyParts: [CurrencyPartsCase]
+    let drafts: [DraftCase]
     let normalizers: [NormalizerCase]
     let times: [TimeCase]
     let settings: [ExpectedSettings]
@@ -214,6 +267,46 @@ private func milliseconds(_ date: Date) -> Double {
             formatCurrency(item.amount, currency: item.currency, fractionDigits: item.digits) == item.text,
             "\(item.amount) \(item.currency), \(item.digits) digits"
         )
+    }
+}
+
+@Test func currencyPartsMatchTypeScript() {
+    for item in fixture.currencyParts {
+        let parts = formatCurrencyParts(item.amount, currency: item.currency, fractionDigits: item.digits)
+        let expected = item.parts
+        #expect(
+            [parts.symbol, parts.symbolPosition.rawValue, parts.sign, parts.integer, parts.decimal, parts.fraction]
+                == [expected.symbol, expected.symbolPosition, expected.sign, expected.integer, expected.decimal, expected.fraction],
+            "\(item.amount) \(item.currency), \(item.digits) digits"
+        )
+    }
+}
+
+@Test func coupledScheduleFieldsMatchTypeScript() {
+    #expect(fixture.drafts.count > 100)
+
+    for item in fixture.drafts {
+        var settings = Settings()
+        settings.startHour = item.before.startHour
+        settings.endHour = item.before.endHour
+        settings.workingHoursPerDay = item.before.workingHoursPerDay
+
+        switch (item.field, item.value) {
+        case ("startHour", .time(let time)): settings.setStartHour(TimeOfDay(parsing: time)!)
+        case ("endHour", .time(let time)): settings.setEndHour(TimeOfDay(parsing: time)!)
+        case ("workingHoursPerDay", .number(let hours)): settings.setWorkingHoursPerDay(hours)
+        case ("workingDays", .number(let days)): settings.setWorkingDays(days)
+        case ("payday", .number(let day)): settings.setPayday(day)
+        default: Issue.record("unknown edit \(item.field)")
+        }
+
+        let after = item.after
+        let label = "\(item.field) = \(item.value) on \(item.before)"
+        #expect(settings.startHour == after.startHour, "start, \(label)")
+        #expect(settings.endHour == after.endHour, "end, \(label)")
+        #expect(settings.workingHoursPerDay == after.workingHoursPerDay, "hours a day, \(label)")
+        #expect(settings.workingDays == after.workingDays, "working days, \(label)")
+        #expect(settings.payday == after.payday, "payday, \(label)")
     }
 }
 

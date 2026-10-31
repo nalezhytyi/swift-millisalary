@@ -1,24 +1,34 @@
 // Expected outputs of the Electron app's shared TypeScript (the reference
 // the Swift port must match), written as the fixture the MillisalaryCore
 // parity tests read. Bundled and run by scripts/parity/generate-fixtures.sh;
-// `@ref` is the Electron repo's src/shared.
+// `@shared` and `@renderer` are the Electron repo's src/shared and
+// src/renderer/src.
 import { writeFileSync } from 'node:fs'
 import dayjs from 'dayjs'
 import {
+  withEndHour,
+  withPayday,
+  withStartHour,
+  withWorkingDays,
+  withWorkingHoursPerDay,
+  type SettingsValues,
+} from '@renderer/utils/settingsDraft'
+import {
   calculateEarnings,
   formatCurrency,
+  formatCurrencyParts,
   getPaydayInMonth,
   getWorkingWindow,
   isScheduledDay,
-} from '@ref/calculations'
+} from '@shared/calculations'
 import {
   formatTimeInputValue,
   normalizePayday,
   normalizeWorkingDays,
   normalizeWorkingHoursPerDay,
   parseTimeInputValue,
-} from '@ref/salaryForm'
-import { sanitizeSettings } from '@ref/settings'
+} from '@shared/salaryForm'
+import { sanitizeSettings } from '@shared/settings'
 
 const [outputPath, reference] = process.argv.slice(2)
 
@@ -253,6 +263,83 @@ const currency = CURRENCIES.flatMap((code) =>
   )
 )
 
+const currencyParts = CURRENCIES.flatMap((code) =>
+  AMOUNTS.flatMap((amount) =>
+    [2, 4].map((digits) => ({
+      amount,
+      currency: code,
+      digits,
+      parts: formatCurrencyParts(amount, code, digits),
+    }))
+  )
+)
+
+// The settings pane's coupled fields (settingsDraft.ts): each edit applied
+// to a few schedules, with times anchored to a day without a DST change, as
+// the pane anchors them to today
+setTimeZone('Europe/Kyiv')
+const DRAFT_DAY = new Date(2026, 9, 29)
+const DRAFT_SCHEDULES: [string, string, number][] = [
+  ['09:00', '17:00', 8],
+  ['09:00', '17:20', 8.33],
+  ['22:00', '06:00', 8],
+  ['10:00', '', 7.5],
+  ['', '', 8],
+  ['09:00', '09:00', 8],
+]
+type DraftEdit = [string, string | number]
+const DRAFT_EDITS: DraftEdit[] = [
+  ...['08:30', '16:00', '23:30', '00:00', '09:00'].map(
+    (time): DraftEdit => ['startHour', time]
+  ),
+  ...['18:00', '08:00', '09:00', '17:19', '23:59', '00:00'].map(
+    (time): DraftEdit => ['endHour', time]
+  ),
+  ...[1, 8, 8.33, 8.05, 12, 24, 0, -3, 30].map(
+    (hours): DraftEdit => ['workingHoursPerDay', hours]
+  ),
+  ...[21, 0, 40, 21.5].map((days): DraftEdit => ['workingDays', days]),
+  ...[15, 0, 31.9, 40].map((day): DraftEdit => ['payday', day]),
+]
+const drafts = DRAFT_SCHEDULES.flatMap(([startHour, endHour, workingHoursPerDay]) =>
+  DRAFT_EDITS.map(([field, value]) => {
+    const values: SettingsValues = {
+      monthlySalary: 1000,
+      monthlySalaryCurrency: 'UAH',
+      earningsCurrency: 'UAH',
+      workingHoursPerDay,
+      workingDays: 22,
+      payday: 1,
+      startHour: parseTimeInputValue(startHour, DRAFT_DAY),
+      endHour: parseTimeInputValue(endHour, DRAFT_DAY),
+    }
+    const time = () => parseTimeInputValue(value as string, DRAFT_DAY)
+    const next =
+      field === 'startHour'
+        ? withStartHour(values, time())
+        : field === 'endHour'
+          ? withEndHour(values, time())
+          : field === 'workingHoursPerDay'
+            ? withWorkingHoursPerDay(values, String(value))
+            : field === 'workingDays'
+              ? withWorkingDays(values, String(value))
+              : withPayday(values, String(value))
+
+    return {
+      before: { startHour, endHour, workingHoursPerDay },
+      field,
+      value,
+      after: {
+        startHour: formatTimeInputValue(next.startHour),
+        endHour: formatTimeInputValue(next.endHour),
+        workingHoursPerDay: next.workingHoursPerDay,
+        workingDays: next.workingDays,
+        payday: next.payday,
+      },
+    }
+  })
+)
+
 // Inputs JSON can't hold go in as strings
 const NORMALIZER_INPUTS: (number | string)[] = [
   -5, -0.5, 0, 0.25, 0.5, 1, 1.5, 7.9, 8, 15.7, 22, 23.99, 24, 24.5, 31, 31.5,
@@ -337,6 +424,8 @@ writeFileSync(
   "earnings": ${lines(earnings)},
   "paydays": ${lines(paydays)},
   "currency": ${lines(currency)},
+  "currencyParts": ${lines(currencyParts)},
+  "drafts": ${lines(drafts)},
   "normalizers": ${lines(normalizers)},
   "times": ${lines(times)},
   "settings": ${lines(settings)}

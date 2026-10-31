@@ -16,7 +16,8 @@ trap 'rm -rf "$WORK"' EXIT
 # dayjs resolves from the reference's node_modules, for both files
 NODE_PATH="$REF/node_modules" "$ESBUILD" "$ROOT/scripts/parity/fixtures.ts" \
   --bundle --platform=node --format=cjs --log-level=warning \
-  --alias:@ref="$REF/src/shared" \
+  --alias:@shared="$REF/src/shared" \
+  --alias:@renderer="$REF/src/renderer/src" \
   --outfile="$WORK/fixtures.cjs"
 
 mkdir -p "$(dirname "$OUTPUT")"
