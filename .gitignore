@@ -1,0 +1,17 @@
+# macOS
+.DS_Store
+
+# Xcode
+DerivedData/
+xcuserdata/
+*.xcuserstate
+
+# XcodeGen: the project is generated from project.yml
+*.xcodeproj/
+
+# SwiftPM
+.build/
+.swiftpm/
+
+# Local build output (scripts, xcodebuild -derivedDataPath)
+/build/
