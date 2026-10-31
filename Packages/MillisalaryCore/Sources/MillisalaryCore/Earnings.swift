@@ -2,6 +2,17 @@ import Foundation
 
 public enum Period: String, CaseIterable, Sendable {
     case hour, day, week, month, year
+
+    /// "This hour", "Today", …: how the menu bar and Breakdown name it
+    public var label: String {
+        switch self {
+        case .hour: "This hour"
+        case .day: "Today"
+        case .week: "This week"
+        case .month: "This month"
+        case .year: "This year"
+        }
+    }
 }
 
 public struct PeriodEarnings: Equatable, Sendable {

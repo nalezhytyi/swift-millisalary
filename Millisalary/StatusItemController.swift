@@ -7,16 +7,20 @@ import Observation
 /// menu of the period amounts. An NSStatusItem rather than SwiftUI's
 /// MenuBarExtra, for control over the title's font and so the open menu
 /// can be updated in place
-final class StatusItemController {
+final class StatusItemController: NSObject {
     private let store: SettingsStore
+    private let open: (Pane?) -> Void
     private let model = EarningsModel()
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-    private let menu = NSMenu()
+    let menu = NSMenu()
     private var amountItems: [NSMenuItem] = []
     private var content: MenuBarContent?
 
-    init(store: SettingsStore) {
+    /// `open` shows the main window, on a pane when one is given
+    init(store: SettingsStore, open: @escaping (Pane?) -> Void) {
         self.store = store
+        self.open = open
+        super.init()
 
         if let button = statusItem.button {
             button.image = NSImage(resource: .menuBarIcon)
@@ -55,15 +59,14 @@ final class StatusItemController {
 
     private func refresh() {
         let settings = store.settings
-        // Until the exchange rate is ported, amounts stay in the salary's
-        // own currency
-        let earnings = settings.monthlySalary > 0
-            ? model.earnings(at: Clock.now, settings.earningsSettings(exchangeRate: 1))
-            : nil
+        if statusItem.isVisible != settings.showInMenuBar {
+            statusItem.isVisible = settings.showInMenuBar
+        }
+
         let next = MenuBarContent(
             settings: settings,
-            earnings: earnings,
-            currency: settings.monthlySalaryCurrency
+            earnings: settings.monthlySalary > 0 ? settings.earnings(at: Clock.now, model: model) : nil,
+            currency: settings.displayCurrency
         )
         guard next != content else { return }
 
@@ -73,7 +76,7 @@ final class StatusItemController {
             writeDebugSnapshot()
             #endif
         }
-        if next.rows.count != amountItems.count {
+        if next.rows.count != amountItems.count || content == nil {
             rebuildMenu(rows: next.rows)
         } else {
             for (item, row) in zip(amountItems, next.rows) where item.title != row {
@@ -86,14 +89,13 @@ final class StatusItemController {
     private func rebuildMenu(rows: [String]) {
         menu.removeAllItems()
 
-        if rows.isEmpty {
-            let hint = NSMenuItem(title: "No salary set", action: nil, keyEquivalent: "")
-            hint.isEnabled = false
-            menu.addItem(hint)
-        }
-        amountItems = rows.map { NSMenuItem(title: $0, action: nil, keyEquivalent: "") }
+        amountItems = rows.map { item($0, #selector(openBreakdown)) }
         amountItems.forEach(menu.addItem)
-
+        if !rows.isEmpty {
+            menu.addItem(.separator())
+        }
+        menu.addItem(item("Open Millisalary", #selector(openWindow)))
+        menu.addItem(item("Settings…", #selector(openSettings)))
         menu.addItem(.separator())
         menu.addItem(NSMenuItem(
             title: "Quit Millisalary",
@@ -101,6 +103,16 @@ final class StatusItemController {
             keyEquivalent: "q"
         ))
     }
+
+    private func item(_ title: String, _ action: Selector) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: "")
+        item.target = self
+        return item
+    }
+
+    @objc private func openWindow() { open(nil) }
+    @objc private func openSettings() { open(.settings) }
+    @objc private func openBreakdown() { open(.breakdown) }
 
     #if DEBUG
     /// With the launch argument `-debugStatusItemSnapshot <path>`, each new

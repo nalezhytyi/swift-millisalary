@@ -18,17 +18,7 @@ public struct MenuBarContent: Equatable, Sendable {
         let period = settings.menuBarAmount == .selected ? settings.selectedPeriod : .day
         title = formatCurrency(earnings[period].earned, currency: currency)
         rows = Period.allCases.map {
-            "\(Self.label(for: $0)): \(formatCurrency(earnings[$0].earned, currency: currency))"
-        }
-    }
-
-    static func label(for period: Period) -> String {
-        switch period {
-        case .hour: "This hour"
-        case .day: "Today"
-        case .week: "This week"
-        case .month: "This month"
-        case .year: "This year"
+            "\($0.label): \(formatCurrency(earnings[$0].earned, currency: currency))"
         }
     }
 }

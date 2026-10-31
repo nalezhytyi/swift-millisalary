@@ -43,8 +43,6 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSApplicationCategoryType: public.app-category.finance
         LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
-        # Menu bar only until the main window exists
-        LSUIElement: true
         NSHumanReadableCopyright: © 2026 nalezhytyi
     settings:
       base:

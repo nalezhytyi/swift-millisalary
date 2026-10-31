@@ -22,6 +22,37 @@ final class SettingsStore {
         }
     }
 
+    /// Applies an edit like the Electron app's applySettingsPatch: only the
+    /// fields it changed are taken, each through its validator (a value it
+    /// rejects leaves the stored one), and only those are written
+    func update(_ edit: (inout Settings) -> Void) {
+        var edited = settings
+        edit(&edited)
+        let stored = settings.propertyList
+        let patch = edited.propertyList.filter { !Self.isEqual(stored[$0.key], $0.value) }
+        let next = settings.applying(patch)
+        guard next != settings else { return }
+
+        for (key, value) in next.propertyList where !Self.isEqual(stored[key], value) {
+            defaults.set(value, forKey: key)
+        }
+        settings = next
+    }
+
+    /// Whether any setting has been stored yet: false on a first launch
+    var hasStoredSettings: Bool {
+        let stored = Bundle.main.bundleIdentifier.flatMap(defaults.persistentDomain(forName:)) ?? [:]
+        return Settings.Key.allCases.contains { stored[$0.rawValue] != nil }
+    }
+
+    /// Replaces every setting, e.g. with imported ones
+    func replace(with settings: Settings) {
+        for (key, value) in settings.propertyList {
+            defaults.set(value, forKey: key)
+        }
+        self.settings = settings
+    }
+
     private func reload() {
         let stored = Self.read(from: defaults)
         if stored != settings {
@@ -35,6 +66,10 @@ final class SettingsStore {
             stored[key.rawValue] = defaults.object(forKey: key.rawValue)
         }
         return Settings(sanitizing: stored)
+    }
+
+    private static func isEqual(_ a: Any?, _ b: Any) -> Bool {
+        (a as? NSObject)?.isEqual(b) ?? false
     }
 }
 
