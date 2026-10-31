@@ -16,10 +16,10 @@ final class SplashModel {
 
     private(set) var phase = Phase.showing
     private(set) var backgroundOpacity = 1.0
-    /// The toolbar's title and sidebar button are drawn above any overlay,
-    /// so they're taken out while the splash covers the window, and put
-    /// back before it lifts
-    private(set) var hidesToolbarItems = true
+    /// The toolbar is drawn above any overlay, so it's hidden while the
+    /// splash covers the window (TitlebarHider) and shown again before the
+    /// splash lifts
+    private(set) var hidesToolbar = true
     /// The dial's face, in the window's coordinates (top-left origin), once
     /// it has been laid out
     var dialFaceFrame: CGRect?
@@ -36,8 +36,7 @@ final class SplashModel {
     private static let flight: TimeInterval = 0.5
     private static let backgroundFade: TimeInterval = 0.3
     private static let reducedMotionFade: TimeInterval = 0.2
-    /// Putting the toolbar's items back makes the toolbar taller and moves
-    /// the window's content down: the flight waits for that layout
+    /// The toolbar fades back in before the flight
     private static let toolbarSettle: TimeInterval = 0.15
 
     var isVisible: Bool { phase != .done }
@@ -48,7 +47,7 @@ final class SplashModel {
     /// No splash this launch
     func cancel() {
         phase = .done
-        hidesToolbarItems = false
+        hidesToolbar = false
     }
 
     func skip() {
@@ -71,7 +70,7 @@ final class SplashModel {
             }
 
             // Under the still opaque splash, so the content's move isn't seen
-            hidesToolbarItems = false
+            hidesToolbar = false
             await wait(Self.toolbarSettle) { false }
             if let frame = measureDialFace?() {
                 dialFaceFrame = frame
@@ -216,6 +215,50 @@ struct WindowFrameReporter: NSViewRepresentable {
             reported = flipped
             // Not during a SwiftUI update
             DispatchQueue.main.async { [report] in report(flipped) }
+        }
+    }
+}
+
+/// Hides the window's toolbar (its title, the sidebar button and the glass
+/// around it) while the splash covers the window, leaving the traffic
+/// lights: the toolbar is drawn above any SwiftUI overlay. It only changes
+/// the opacity of what sits next to the traffic lights in the titlebar, so
+/// nothing moves; taking the toolbar's items out instead left it shorter
+/// and moved the traffic lights by 10 pt when they came back
+struct TitlebarHider: NSViewRepresentable {
+    let hidden: Bool
+
+    func makeNSView(context: Context) -> HiderView {
+        HiderView()
+    }
+
+    func updateNSView(_ view: HiderView, context: Context) {
+        view.hidesTitlebar = hidden
+    }
+
+    final class HiderView: NSView {
+        var hidesTitlebar = false {
+            didSet {
+                if hidesTitlebar != oldValue { apply(animated: true) }
+            }
+        }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            apply(animated: false)
+        }
+
+        private func apply(animated: Bool) {
+            guard let window, let titlebar = window.standardWindowButton(.closeButton)?.superview else { return }
+            let buttons = [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton]
+                .compactMap { window.standardWindowButton($0) }
+
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = animated ? 0.2 : 0
+                for view in titlebar.subviews where !buttons.contains(where: { $0 === view }) {
+                    view.animator().alphaValue = hidesTitlebar ? 0 : 1
+                }
+            }
         }
     }
 }
