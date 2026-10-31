@@ -17,9 +17,10 @@ struct MainView: View {
         NavigationSplitView(columnVisibility: $navigation.columnVisibility) {
             SidebarView(selection: selection)
                 .navigationSplitViewColumnWidth(min: 180, ideal: 240, max: 360)
+                .toolbar(removing: splash.hidesToolbarItems ? .sidebarToggle : nil)
         } detail: {
             detail
-                .navigationTitle(selected.title)
+                .navigationTitle(splash.hidesToolbarItems ? "" : selected.title)
         }
         .frame(minWidth: 520, minHeight: 460)
         .background(TickWhileVisible())

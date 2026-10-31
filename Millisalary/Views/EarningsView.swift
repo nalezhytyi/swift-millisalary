@@ -92,7 +92,7 @@ struct EarningsDial: View {
                     MoneyFace()
                         .frame(width: side * 0.16, height: side * 0.16)
                         // Where the splash's face lands, hidden until it has
-                        .background(WindowFrameReporter { splash.dialFaceFrame = $0 })
+                        .background(WindowFrameReporter { splash.dialFaceFrame = $0 } measure: { splash.measureDialFace = $0 })
                         .opacity(splash.hidesDialFace ? 0 : 1)
                     amount(side: side)
                     Text("of \(formatCurrency(total, currency: currency)) \(caption)")

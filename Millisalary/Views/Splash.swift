@@ -16,9 +16,17 @@ final class SplashModel {
 
     private(set) var phase = Phase.showing
     private(set) var backgroundOpacity = 1.0
+    /// The toolbar's title and sidebar button are drawn above any overlay,
+    /// so they're taken out while the splash covers the window, and put
+    /// back before it lifts
+    private(set) var hidesToolbarItems = true
     /// The dial's face, in the window's coordinates (top-left origin), once
     /// it has been laid out
     var dialFaceFrame: CGRect?
+    /// Measures the dial's face now. Its reports only come when its own
+    /// frame changes, not when the content around it moves (as it does when
+    /// the toolbar's items come back), so the flight measures it afresh
+    @ObservationIgnored var measureDialFace: (() -> CGRect?)?
     @ObservationIgnored private var skipped = false
     @ObservationIgnored private var started = false
 
@@ -28,6 +36,9 @@ final class SplashModel {
     private static let flight: TimeInterval = 0.5
     private static let backgroundFade: TimeInterval = 0.3
     private static let reducedMotionFade: TimeInterval = 0.2
+    /// Putting the toolbar's items back makes the toolbar taller and moves
+    /// the window's content down: the flight waits for that layout
+    private static let toolbarSettle: TimeInterval = 0.15
 
     var isVisible: Bool { phase != .done }
 
@@ -37,6 +48,7 @@ final class SplashModel {
     /// No splash this launch
     func cancel() {
         phase = .done
+        hidesToolbarItems = false
     }
 
     func skip() {
@@ -58,6 +70,12 @@ final class SplashModel {
                 await wait(Self.cycle) { self.skipped }
             }
 
+            // Under the still opaque splash, so the content's move isn't seen
+            hidesToolbarItems = false
+            await wait(Self.toolbarSettle) { false }
+            if let frame = measureDialFace?() {
+                dialFaceFrame = frame
+            }
             if !reduceMotion, opensOnDial() {
                 await wait(Self.dialTimeout) { self.dialFaceFrame != nil }
             }
@@ -110,12 +128,16 @@ struct SplashView: View {
                     .frame(width: rect.width, height: rect.height)
                     .position(x: rect.midX, y: rect.midY)
             }
+            .frame(width: proxy.size.width, height: proxy.size.height)
+            // Measured here, inside the reader that places the face: outside
+            // it the frame starts below the toolbar while the face is placed
+            // from the window's top, which landed it a toolbar too high
+            .background(WindowFrameReporter { origin = $0.origin })
         }
         .ignoresSafeArea()
         .opacity(splash.phase == .fading ? 0 : 1)
         .contentShape(Rectangle())
         .onTapGesture { splash.skip() }
-        .background(WindowFrameReporter { origin = $0.origin })
         .accessibilityHidden(true)
         .onAppear {
             splash.run(face: face, reduceMotion: reduceMotion) { [navigation] in
@@ -138,9 +160,13 @@ struct SplashView: View {
 /// which is hosted on its own, so this asks AppKit
 struct WindowFrameReporter: NSViewRepresentable {
     let report: (CGRect) -> Void
+    /// Hands over a way to measure the view on demand
+    var measure: ((@escaping () -> CGRect?) -> Void)?
 
     func makeNSView(context: Context) -> ReportingView {
-        ReportingView(report: report)
+        let view = ReportingView(report: report)
+        measure? { [weak view] in view?.currentFrame() }
+        return view
     }
 
     func updateNSView(_ view: ReportingView, context: Context) {
@@ -175,13 +201,18 @@ struct WindowFrameReporter: NSViewRepresentable {
             reportFrame()
         }
 
-        func reportFrame() {
-            guard let content = window?.contentView else { return }
+        /// The frame as laid out now, after any pending layout
+        func currentFrame() -> CGRect? {
+            guard let content = window?.contentView else { return nil }
+            content.layoutSubtreeIfNeeded()
             let frame = convert(bounds, to: content)
-            let flipped = content.isFlipped
+            return content.isFlipped
                 ? frame
                 : CGRect(x: frame.minX, y: content.bounds.height - frame.maxY, width: frame.width, height: frame.height)
-            guard flipped != reported, flipped.width > 0 else { return }
+        }
+
+        func reportFrame() {
+            guard let flipped = currentFrame(), flipped != reported, flipped.width > 0 else { return }
             reported = flipped
             // Not during a SwiftUI update
             DispatchQueue.main.async { [report] in report(flipped) }
