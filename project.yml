@@ -38,7 +38,8 @@ targets:
     info:
       path: Millisalary/Info.plist
       properties:
-        CFBundleDisplayName: Millisalary
+        CFBundleDisplayName: $(APP_DISPLAY_NAME)
+        CFBundleName: $(APP_DISPLAY_NAME)
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         LSApplicationCategoryType: public.app-category.finance
@@ -48,6 +49,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.nalezhytyi.millisalary
         PRODUCT_NAME: Millisalary
+        APP_DISPLAY_NAME: Millisalary
         ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: YES
         ENABLE_HARDENED_RUNTIME: YES
         GENERATE_INFOPLIST_FILE: NO
@@ -56,6 +58,9 @@ targets:
         # item with an installed Millisalary
         Debug:
           PRODUCT_BUNDLE_IDENTIFIER: com.nalezhytyi.millisalary.debug
+          # Told apart from an installed Millisalary in System Settings
+          # (Notifications, Login Items) and the app menu
+          APP_DISPLAY_NAME: Millisalary Dev
 
 schemes:
   Millisalary:

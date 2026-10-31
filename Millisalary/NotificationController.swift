@@ -130,7 +130,11 @@ final class NotificationController {
 
     private func refreshAuthorization() {
         Task {
-            authorization = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
+            let settings = await UNUserNotificationCenter.current().notificationSettings()
+            if settings.authorizationStatus != authorization {
+                Self.log.info("Authorization: \(settings.authorizationStatus.rawValue, privacy: .public) (0 not determined, 1 denied, 2 authorized, 3 provisional), alerts \(settings.alertSetting.rawValue, privacy: .public)")
+            }
+            authorization = settings.authorizationStatus
         }
     }
 
