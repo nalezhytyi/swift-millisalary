@@ -26,6 +26,9 @@ settings:
 packages:
   MillisalaryCore:
     path: Packages/MillisalaryCore
+  AmplitudeSwift:
+    url: https://github.com/amplitude/Amplitude-Swift
+    exactVersion: 1.19.4
 
 targets:
   Millisalary:
@@ -35,6 +38,7 @@ targets:
       - Millisalary
     dependencies:
       - package: MillisalaryCore
+      - package: AmplitudeSwift
     info:
       path: Millisalary/Info.plist
       properties:

@@ -9,6 +9,7 @@ struct SettingsView: View {
     @Environment(SettingsStore.self) private var store
     @Environment(NotificationController.self) private var notifications
     @Environment(LoginItemController.self) private var loginItem
+    @Environment(Analytics.self) private var analytics
 
     private static let currencies = ["UAH", "USD", "EUR", "PLN", "CZK", "RON"]
     private static let days = (1...31).map(Double.init)
@@ -141,8 +142,15 @@ struct SettingsView: View {
         Binding {
             store.settings[keyPath: keyPath]
         } set: { value in
-            store.update { $0[keyPath: keyPath] = value }
+            update { $0[keyPath: keyPath] = value }
         }
+    }
+
+    /// Every edit goes through here, and each field it changed is reported
+    private func update(_ edit: (inout MillisalaryCore.Settings) -> Void) {
+        let before = store.settings
+        store.update(edit)
+        analytics.settingsChanged(from: before, to: store.settings)
     }
 
     /// A value that is changed through one of the coupled-field edits
@@ -150,7 +158,7 @@ struct SettingsView: View {
         Binding {
             value
         } set: { newValue in
-            store.update { apply(&$0, newValue) }
+            update { apply(&$0, newValue) }
         }
     }
 
@@ -164,7 +172,7 @@ struct SettingsView: View {
         } set: { date in
             let parts = Calendar.current.dateComponents([.hour, .minute], from: date)
             let time = TimeOfDay(hour: parts.hour ?? 0, minute: parts.minute ?? 0)
-            store.update { apply(&$0, time) }
+            update { apply(&$0, time) }
         }
     }
 

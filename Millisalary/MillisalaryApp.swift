@@ -20,6 +20,7 @@ struct MillisalaryApp: App {
                 .environment(app.loginItem)
                 .environment(app.face)
                 .environment(app.splash)
+                .environment(app.analytics)
         }
         .defaultSize(width: 820, height: 580)
         .windowResizability(.contentMinSize)
@@ -65,7 +66,7 @@ private struct AppCommands: Commands {
         let _ = app.openWindow = openWindow
 
         CommandGroup(after: .appInfo) {
-            Button("Check for Updates…") { app.updates.checkFromMenu() }
+            Button("Check for Updates…") { app.updates.checkFromMenu(source: .menu) }
         }
 
         CommandGroup(replacing: .appSettings) {
@@ -74,7 +75,7 @@ private struct AppCommands: Commands {
         }
 
         CommandGroup(before: .toolbar) {
-            Button("Toggle Sidebar") { app.navigation.toggleSidebar() }
+            Button("Toggle Sidebar") { app.navigation.toggleSidebar(source: .shortcut) }
                 .keyboardShortcut("s", modifiers: [.control, .command])
             Divider()
             // A radio group that follows the selected period

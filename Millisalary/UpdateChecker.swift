@@ -10,6 +10,7 @@ import os
 /// installed by hand
 final class UpdateChecker {
     private let notifications: NotificationController
+    private let analytics: Analytics
     private let defaults: UserDefaults
 
     private static let firstCheckDelay: TimeInterval = 15
@@ -19,8 +20,9 @@ final class UpdateChecker {
     private static let notifiedKey = "updateNotifiedVersion"
     private nonisolated static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Millisalary", category: "updates")
 
-    init(notifications: NotificationController, defaults: UserDefaults = .standard) {
+    init(notifications: NotificationController, analytics: Analytics, defaults: UserDefaults = .standard) {
         self.notifications = notifications
+        self.analytics = analytics
         self.defaults = defaults
     }
 
@@ -64,8 +66,10 @@ final class UpdateChecker {
         RunLoop.main.add(timer, forMode: .common)
     }
 
-    /// Check for Updates… in the app menu and the menu bar item's menu
-    func checkFromMenu() {
+    /// Check for Updates… in the app menu (`.menu`) and the menu bar item's
+    /// menu (`.tray`)
+    func checkFromMenu(source: ActionSource) {
+        analytics.track("update_check_clicked", ["source": .string(source.rawValue)])
         Task {
             show(await fetch())
         }
@@ -79,6 +83,7 @@ final class UpdateChecker {
                   defaults.string(forKey: Self.notifiedKey) != release.version.description
             else { return }
             defaults.set(release.version.description, forKey: Self.notifiedKey)
+            analytics.track("update_available_notified", ["version": .string(release.version.description)])
             notifications.announce(
                 title: "Millisalary \(release.version) is available",
                 body: "Click to open the download page.",

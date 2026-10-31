@@ -15,11 +15,12 @@ final class AppController {
     let rates = ExchangeRateStore()
     let face = FaceAnimation()
     let splash = SplashModel()
-    private(set) lazy var notifications = NotificationController(store: store, rates: rates) { [weak self] in
-        self?.show()
+    let analytics = Analytics()
+    private(set) lazy var notifications = NotificationController(store: store, rates: rates, analytics: analytics) {
+        [weak self] in self?.show()
     }
     private(set) lazy var loginItem = LoginItemController(store: store)
-    private(set) lazy var updates = UpdateChecker(notifications: notifications)
+    private(set) lazy var updates = UpdateChecker(notifications: notifications, analytics: analytics)
     private var statusItem: StatusItemController?
 
     /// SwiftUI's way to open the main window (a `Window` scene), which the
@@ -31,7 +32,7 @@ final class AppController {
     /// login: the menu bar item only), and the notification delegate, which
     /// UserNotifications wants set before launch finishes
     func prepareLaunch(launchEvent: NSAppleEventDescriptor?) {
-        _ = notifications
+        notifications.becomeDelegate()
         if LoginItemController.wasLaunchedAtLogin(launchEvent: launchEvent, settingOn: store.settings.launchAtLogin) {
             navigation.hideOnLaunch = true
             // Nobody is watching it start
@@ -54,8 +55,9 @@ final class AppController {
         statusItem = StatusItemController(
             store: store,
             rates: rates,
-            open: { [weak self] pane in self?.show(pane) },
-            checkForUpdates: { [weak self] in self?.updates.checkFromMenu() }
+            open: { [weak self] pane in self?.show(pane, source: .tray) },
+            checkForUpdates: { [weak self] in self?.updates.checkFromMenu(source: .tray) },
+            menuOpened: { [weak self] in self?.analytics.track("tray_menu_opened") }
         )
         followTheme()
         loginItem.start()
@@ -70,19 +72,25 @@ final class AppController {
     }
 
     /// Opens the main window, or brings it to the front, on `pane` when one
-    /// is given
-    func show(_ pane: Pane? = nil) {
+    /// is given (`source` says who asked, for analytics)
+    func show(_ pane: Pane? = nil, source: ActionSource = .shortcut) {
         if let pane {
-            navigation.pane = pane
+            let item: SidebarItem = switch pane {
+            case .earnings: .period(store.settings.selectedPeriod)
+            case .breakdown: .breakdown
+            case .settings: .settings
+            }
+            navigation.select(item, source: source, store: store, analytics: analytics)
         }
         openWindow?(id: Self.mainWindowID)
         NSApp.activate()
     }
 
-    /// Selects a period and shows its dial (⌘1-⌘5)
+    /// Selects a period and shows its dial (⌘1-⌘5): the period changed from
+    /// the menu, the dial shown by a shortcut, as the Electron app reported it
     func showPeriod(_ period: Period) {
-        store.update { $0.selectedPeriod = period }
-        show(.earnings)
+        navigation.select(.period(period), source: .shortcut, periodSource: .menu, store: store, analytics: analytics)
+        show()
     }
 
     /// The exchange rate follows the currencies in the settings

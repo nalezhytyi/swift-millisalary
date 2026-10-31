@@ -7,11 +7,12 @@ import Observation
 /// menu of the period amounts. An NSStatusItem rather than SwiftUI's
 /// MenuBarExtra, for control over the title's font and so the open menu
 /// can be updated in place
-final class StatusItemController: NSObject {
+final class StatusItemController: NSObject, NSMenuDelegate {
     private let store: SettingsStore
     private let rates: ExchangeRateStore
     private let open: (Pane?) -> Void
     private let checkForUpdates: () -> Void
+    private let menuOpened: () -> Void
     private let model = EarningsModel()
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     let menu = NSMenu()
@@ -23,12 +24,14 @@ final class StatusItemController: NSObject {
         store: SettingsStore,
         rates: ExchangeRateStore,
         open: @escaping (Pane?) -> Void,
-        checkForUpdates: @escaping () -> Void
+        checkForUpdates: @escaping () -> Void,
+        menuOpened: @escaping () -> Void
     ) {
         self.store = store
         self.rates = rates
         self.open = open
         self.checkForUpdates = checkForUpdates
+        self.menuOpened = menuOpened
         super.init()
 
         if let button = statusItem.button {
@@ -41,6 +44,7 @@ final class StatusItemController: NSObject {
             )
         }
         menu.autoenablesItems = false
+        menu.delegate = self
         statusItem.menu = menu
 
         refresh()
@@ -126,6 +130,10 @@ final class StatusItemController: NSObject {
     @objc private func openSettings() { open(.settings) }
     @objc private func openBreakdown() { open(.breakdown) }
     @objc private func checkUpdates() { checkForUpdates() }
+
+    func menuWillOpen(_ menu: NSMenu) {
+        menuOpened()
+    }
 
     #if DEBUG
     /// With the launch argument `-debugStatusItemSnapshot <path>`, each new

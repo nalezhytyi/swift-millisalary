@@ -9,6 +9,7 @@ struct MainView: View {
     @Environment(\.dismissWindow) private var dismissWindow
     @Environment(FaceAnimation.self) private var face
     @Environment(SplashModel.self) private var splash
+    @Environment(Analytics.self) private var analytics
 
     var body: some View {
         @Bindable var navigation = navigation
@@ -37,14 +38,16 @@ struct MainView: View {
             }
         }
         .onDisappear { face.unload() }
+        .onChange(of: navigation.columnVisibility) { _, visibility in
+            analytics.track("sidebar_toggled", [
+                "visible": .bool(visibility != .detailOnly),
+                "source": .string(navigation.takeToggleSource().rawValue),
+            ])
+        }
     }
 
     private var selected: SidebarItem {
-        switch navigation.pane {
-        case .earnings: .period(store.settings.selectedPeriod)
-        case .breakdown: .breakdown
-        case .settings: .settings
-        }
+        navigation.selected(in: store.settings)
     }
 
     /// Picking a period selects it in the settings too, as the Electron app
@@ -53,16 +56,8 @@ struct MainView: View {
         Binding {
             selected
         } set: { item in
-            switch item {
-            case .period(let period):
-                store.update { $0.selectedPeriod = period }
-                navigation.pane = .earnings
-            case .breakdown:
-                navigation.pane = .breakdown
-            case .settings:
-                navigation.pane = .settings
-            case nil:
-                break
+            if let item {
+                navigation.select(item, source: .sidebar, store: store, analytics: analytics)
             }
         }
     }

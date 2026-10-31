@@ -18,9 +18,11 @@ final class NotificationController {
 
     @ObservationIgnored private let store: SettingsStore
     @ObservationIgnored private let rates: ExchangeRateStore
+    @ObservationIgnored private let analytics: Analytics
+    @ObservationIgnored private let showWindow: @MainActor () -> Void
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let model = EarningsModel()
-    @ObservationIgnored private let clicks: ClickHandler
+    @ObservationIgnored private var clicks: ClickHandler?
     @ObservationIgnored private var handled: [String]
     @ObservationIgnored private var wantedNotifications = false
 
@@ -28,17 +30,49 @@ final class NotificationController {
     private static let checkInterval: TimeInterval = 30
     private nonisolated static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Millisalary", category: "notifications")
 
-    /// `onClick` shows the main window. The delegate is set here, before
-    /// the app finishes launching, as UserNotifications asks
-    init(store: SettingsStore, rates: ExchangeRateStore, defaults: UserDefaults = .standard, onClick: @escaping @MainActor () -> Void) {
+    /// `showWindow` is what a click on an earnings notification does
+    init(
+        store: SettingsStore,
+        rates: ExchangeRateStore,
+        analytics: Analytics,
+        defaults: UserDefaults = .standard,
+        showWindow: @escaping @MainActor () -> Void
+    ) {
         self.store = store
         self.rates = rates
+        self.analytics = analytics
         self.defaults = defaults
-        clicks = ClickHandler(onClick: onClick)
+        self.showWindow = showWindow
         // Remembered across launches, so a restart after the time has passed
         // doesn't send the same notification twice
         handled = defaults.stringArray(forKey: Self.handledKey) ?? []
+    }
+
+    /// Takes the notification center's clicks. Called before the app
+    /// finishes launching, as UserNotifications asks
+    func becomeDelegate() {
+        guard clicks == nil else { return }
+        let clicks = ClickHandler { [weak self] id, url in
+            self?.clicked(id: id, url: url)
+        }
+        self.clicks = clicks
         UNUserNotificationCenter.current().delegate = clicks
+    }
+
+    /// A notification's id starts with its kind: "end_of_day:…", "payday:…"
+    /// show the window, "update:<version>" opens the release page
+    private func clicked(id: String, url: URL?) {
+        let kind = String(id.prefix { $0 != ":" })
+        if kind == "update" {
+            analytics.track("update_notification_clicked", ["version": .string(String(id.dropFirst("update:".count)))])
+        } else {
+            analytics.track("notification_clicked", ["kind": .string(kind)])
+        }
+        if let url {
+            NSWorkspace.shared.open(url)
+        } else {
+            showWindow()
+        }
     }
 
     func start() {
@@ -157,24 +191,21 @@ final class NotificationController {
     }
 }
 
-/// The notification center's delegate: a click shows the main window (or
-/// opens the notification's URL), and a notification is shown even while
-/// the app is in front
+/// The notification center's delegate: hands a click (the notification's
+/// id, and the URL it opens if any) to the controller, and has a
+/// notification shown even while the app is in front
 private nonisolated final class ClickHandler: NSObject, UNUserNotificationCenterDelegate {
     static let urlKey = "url"
-    private let onClick: @MainActor () -> Void
+    private let onClick: @MainActor (String, URL?) -> Void
 
-    init(onClick: @escaping @MainActor () -> Void) {
+    init(onClick: @escaping @MainActor (String, URL?) -> Void) {
         self.onClick = onClick
     }
 
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
-        if let link = response.notification.request.content.userInfo[Self.urlKey] as? String,
-           let url = URL(string: link) {
-            await MainActor.run { _ = NSWorkspace.shared.open(url) }
-        } else {
-            await onClick()
-        }
+        let request = response.notification.request
+        let url = (request.content.userInfo[Self.urlKey] as? String).flatMap(URL.init(string:))
+        await onClick(request.identifier, url)
     }
 
     func userNotificationCenter(

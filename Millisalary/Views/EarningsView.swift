@@ -9,6 +9,7 @@ struct EarningsView: View {
     @Environment(Navigation.self) private var navigation
     @Environment(ExchangeRateStore.self) private var rates
     @Environment(Ticker.self) private var ticker
+    @Environment(Analytics.self) private var analytics
 
     var body: some View {
         let settings = store.settings
@@ -29,7 +30,9 @@ struct EarningsView: View {
             if settings.monthlySalary > 0 {
                 StatsRow(earnings: earnings, currency: display.currency)
             } else {
-                SetupHint { navigation.pane = .settings }
+                SetupHint {
+                    navigation.select(.settings, source: .setupHint, store: store, analytics: analytics)
+                }
             }
         }
         .padding(.horizontal, 20)
