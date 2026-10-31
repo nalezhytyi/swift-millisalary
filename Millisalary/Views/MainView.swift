@@ -7,6 +7,8 @@ struct MainView: View {
     @Environment(SettingsStore.self) private var store
     @Environment(Navigation.self) private var navigation
     @Environment(\.dismissWindow) private var dismissWindow
+    @Environment(FaceAnimation.self) private var face
+    @Environment(SplashModel.self) private var splash
 
     var body: some View {
         @Bindable var navigation = navigation
@@ -20,13 +22,21 @@ struct MainView: View {
         }
         .frame(minWidth: 520, minHeight: 460)
         .background(TickWhileVisible())
+        .overlay {
+            if splash.isVisible {
+                SplashView()
+            }
+        }
         .onAppear {
+            // The face's frames live as long as the window
+            face.load()
             // Started at login: the menu bar item only, until asked
             if navigation.hideOnLaunch {
                 navigation.hideOnLaunch = false
                 dismissWindow(id: AppController.mainWindowID)
             }
         }
+        .onDisappear { face.unload() }
     }
 
     private var selected: SidebarItem {

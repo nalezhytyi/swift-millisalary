@@ -18,6 +18,8 @@ struct MillisalaryApp: App {
                 .environment(app.rates)
                 .environment(app.notifications)
                 .environment(app.loginItem)
+                .environment(app.face)
+                .environment(app.splash)
         }
         .defaultSize(width: 820, height: 580)
         .windowResizability(.contentMinSize)

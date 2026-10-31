@@ -51,6 +51,7 @@ struct EarningsDial: View {
     let currency: String
     let period: Period
 
+    @Environment(SplashModel.self) private var splash
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var shownProgress = 0.0
     @State private var animatingUntil = Date.distantPast
@@ -85,10 +86,11 @@ struct EarningsDial: View {
                     .opacity(shownProgress > 0 ? 1 : 0)
 
                 VStack(spacing: side * 0.02) {
-                    Image(.moneyFace)
-                        .resizable()
-                        .scaledToFit()
+                    MoneyFace()
                         .frame(width: side * 0.16, height: side * 0.16)
+                        // Where the splash's face lands, hidden until it has
+                        .background(WindowFrameReporter { splash.dialFaceFrame = $0 })
+                        .opacity(splash.hidesDialFace ? 0 : 1)
                     amount(side: side)
                     Text("of \(formatCurrency(total, currency: currency)) \(caption)")
                         .font(.system(size: side * 0.038))

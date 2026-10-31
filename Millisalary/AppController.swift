@@ -13,6 +13,8 @@ final class AppController {
     let navigation = Navigation()
     let ticker = Ticker()
     let rates = ExchangeRateStore()
+    let face = FaceAnimation()
+    let splash = SplashModel()
     private(set) lazy var notifications = NotificationController(store: store, rates: rates) { [weak self] in
         self?.show()
     }
@@ -31,6 +33,8 @@ final class AppController {
         _ = notifications
         if LoginItemController.wasLaunchedAtLogin(launchEvent: launchEvent, settingOn: store.settings.launchAtLogin) {
             navigation.hideOnLaunch = true
+            // Nobody is watching it start
+            splash.cancel()
         }
     }
 
