@@ -18,6 +18,13 @@ case "$archs" in
   *) echo "Expected a universal app, got: $archs" >&2; exit 1 ;;
 esac
 codesign --verify --deep --strict "$app"
+# An ad hoc signature has no Team ID, so the hardened runtime's library
+# validation would refuse every embedded framework and the app would crash
+# at launch (0.1.0 did)
+if [ -d "$app/Contents/Frameworks" ] && codesign -dv "$app" 2>&1 | grep -q 'flags=.*runtime'; then
+  echo "The app has the hardened runtime and embedded frameworks: it can't launch signed ad hoc." >&2
+  exit 1
+fi
 
 staging="$(mktemp -d)"
 trap 'rm -rf "$staging"' EXIT
