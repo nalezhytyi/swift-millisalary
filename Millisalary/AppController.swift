@@ -19,6 +19,7 @@ final class AppController {
         self?.show()
     }
     private(set) lazy var loginItem = LoginItemController(store: store)
+    private(set) lazy var updates = UpdateChecker(notifications: notifications)
     private var statusItem: StatusItemController?
 
     /// SwiftUI's way to open the main window (a `Window` scene), which the
@@ -50,12 +51,16 @@ final class AppController {
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.rates.refresh() }
         }
-        statusItem = StatusItemController(store: store, rates: rates) { [weak self] pane in
-            self?.show(pane)
-        }
+        statusItem = StatusItemController(
+            store: store,
+            rates: rates,
+            open: { [weak self] pane in self?.show(pane) },
+            checkForUpdates: { [weak self] in self?.updates.checkFromMenu() }
+        )
         followTheme()
         loginItem.start()
         notifications.start()
+        updates.start()
         #if DEBUG
         if let pane = Self.debugLaunchPane {
             navigation.pane = pane

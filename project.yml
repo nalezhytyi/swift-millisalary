@@ -45,6 +45,8 @@ targets:
         LSApplicationCategoryType: public.app-category.finance
         LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
         NSHumanReadableCopyright: © 2026 nalezhytyi
+        # Where the update check and scripts/release.sh look for releases
+        MillisalaryReleasesRepo: nalezhytyi/swift-millisalary
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.nalezhytyi.millisalary

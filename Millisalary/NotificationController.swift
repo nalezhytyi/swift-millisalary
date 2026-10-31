@@ -98,15 +98,25 @@ final class NotificationController {
         let display = settings.amountDisplay(rates)
         let earnings = settings.earnings(at: now, display, model: model)
         for notification in due.send {
-            send(NotificationContent(kind: notification.kind, earnings: earnings, currency: display.currency), id: notification.key)
+            let content = NotificationContent(kind: notification.kind, earnings: earnings, currency: display.currency)
+            send(title: content.title, body: content.body, id: notification.key)
         }
     }
 
-    private func send(_ content: NotificationContent, id: String) {
+    /// Any other notification, e.g. a new version; a click opens `url`
+    /// instead of the window
+    func announce(title: String, body: String, id: String, opening url: URL) {
+        send(title: title, body: body, id: id, url: url)
+    }
+
+    private func send(title: String, body: String, id: String, url: URL? = nil) {
         let message = UNMutableNotificationContent()
-        message.title = content.title
-        message.body = content.body
+        message.title = title
+        message.body = body
         message.sound = .default
+        if let url {
+            message.userInfo = [ClickHandler.urlKey: url.absoluteString]
+        }
 
         UNUserNotificationCenter.current().add(UNNotificationRequest(identifier: id, content: message, trigger: nil)) { error in
             if let error {
@@ -147,9 +157,11 @@ final class NotificationController {
     }
 }
 
-/// The notification center's delegate: a click shows the main window, and
-/// a notification is shown even while the app is in front
+/// The notification center's delegate: a click shows the main window (or
+/// opens the notification's URL), and a notification is shown even while
+/// the app is in front
 private nonisolated final class ClickHandler: NSObject, UNUserNotificationCenterDelegate {
+    static let urlKey = "url"
     private let onClick: @MainActor () -> Void
 
     init(onClick: @escaping @MainActor () -> Void) {
@@ -157,7 +169,12 @@ private nonisolated final class ClickHandler: NSObject, UNUserNotificationCenter
     }
 
     func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse) async {
-        await onClick()
+        if let link = response.notification.request.content.userInfo[Self.urlKey] as? String,
+           let url = URL(string: link) {
+            await MainActor.run { _ = NSWorkspace.shared.open(url) }
+        } else {
+            await onClick()
+        }
     }
 
     func userNotificationCenter(

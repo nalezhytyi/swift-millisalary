@@ -11,6 +11,7 @@ final class StatusItemController: NSObject {
     private let store: SettingsStore
     private let rates: ExchangeRateStore
     private let open: (Pane?) -> Void
+    private let checkForUpdates: () -> Void
     private let model = EarningsModel()
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     let menu = NSMenu()
@@ -18,10 +19,16 @@ final class StatusItemController: NSObject {
     private var content: MenuBarContent?
 
     /// `open` shows the main window, on a pane when one is given
-    init(store: SettingsStore, rates: ExchangeRateStore, open: @escaping (Pane?) -> Void) {
+    init(
+        store: SettingsStore,
+        rates: ExchangeRateStore,
+        open: @escaping (Pane?) -> Void,
+        checkForUpdates: @escaping () -> Void
+    ) {
         self.store = store
         self.rates = rates
         self.open = open
+        self.checkForUpdates = checkForUpdates
         super.init()
 
         if let button = statusItem.button {
@@ -101,6 +108,7 @@ final class StatusItemController: NSObject {
         menu.addItem(item("Open Millisalary", #selector(openWindow)))
         menu.addItem(item("Settings…", #selector(openSettings)))
         menu.addItem(.separator())
+        menu.addItem(item("Check for Updates…", #selector(checkUpdates)))
         menu.addItem(NSMenuItem(
             title: "Quit Millisalary",
             action: #selector(NSApplication.terminate(_:)),
@@ -117,6 +125,7 @@ final class StatusItemController: NSObject {
     @objc private func openWindow() { open(nil) }
     @objc private func openSettings() { open(.settings) }
     @objc private func openBreakdown() { open(.breakdown) }
+    @objc private func checkUpdates() { checkForUpdates() }
 
     #if DEBUG
     /// With the launch argument `-debugStatusItemSnapshot <path>`, each new

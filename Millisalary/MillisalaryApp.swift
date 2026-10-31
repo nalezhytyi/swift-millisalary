@@ -64,6 +64,10 @@ private struct AppCommands: Commands {
         // open, so this is where AppController gets the window opener
         let _ = app.openWindow = openWindow
 
+        CommandGroup(after: .appInfo) {
+            Button("Check for Updates…") { app.updates.checkFromMenu() }
+        }
+
         CommandGroup(replacing: .appSettings) {
             Button("Settings…") { app.show(.settings) }
                 .keyboardShortcut(",")
