@@ -6,8 +6,9 @@ DerivedData/
 xcuserdata/
 *.xcuserstate
 
-# XcodeGen: the project is generated from project.yml
+# XcodeGen: the project and the Info.plist are generated from project.yml
 *.xcodeproj/
+/Millisalary/Info.plist
 
 # SwiftPM
 .build/

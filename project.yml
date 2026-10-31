@@ -1,0 +1,74 @@
+# The Xcode project is generated from this file: run `xcodegen generate`
+# after changing it or adding files (Millisalary.xcodeproj is not committed)
+name: Millisalary
+
+options:
+  bundleIdPrefix: com.nalezhytyi
+  deploymentTarget:
+    macOS: "14.0"
+  developmentLanguage: en
+  createIntermediateGroups: true
+
+settings:
+  base:
+    MARKETING_VERSION: 0.1.0
+    CURRENT_PROJECT_VERSION: 1
+    SWIFT_VERSION: "6.0"
+    SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+    SWIFT_APPROACHABLE_CONCURRENCY: YES
+    # No Developer ID: signed ad hoc, not notarized
+    CODE_SIGN_IDENTITY: "-"
+    CODE_SIGN_STYLE: Manual
+    DEVELOPMENT_TEAM: ""
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    DEAD_CODE_STRIPPING: YES
+
+packages:
+  MillisalaryCore:
+    path: Packages/MillisalaryCore
+
+targets:
+  Millisalary:
+    type: application
+    platform: macOS
+    sources:
+      - Millisalary
+    dependencies:
+      - package: MillisalaryCore
+    info:
+      path: Millisalary/Info.plist
+      properties:
+        CFBundleDisplayName: Millisalary
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSApplicationCategoryType: public.app-category.finance
+        LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
+        # Menu bar only until the main window exists
+        LSUIElement: true
+        NSHumanReadableCopyright: © 2026 nalezhytyi
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.nalezhytyi.millisalary
+        PRODUCT_NAME: Millisalary
+        ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS: YES
+        ENABLE_HARDENED_RUNTIME: YES
+        GENERATE_INFOPLIST_FILE: NO
+      configs:
+        # A dev build never shares settings, notifications or the login
+        # item with an installed Millisalary
+        Debug:
+          PRODUCT_BUNDLE_IDENTIFIER: com.nalezhytyi.millisalary.debug
+
+schemes:
+  Millisalary:
+    build:
+      targets:
+        Millisalary: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - package: MillisalaryCore/MillisalaryCoreTests
+    archive:
+      config: Release
