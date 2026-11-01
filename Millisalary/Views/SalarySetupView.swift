@@ -93,7 +93,7 @@ struct SalarySetupView: View {
             ZStack {
                 // The dial's ring before there's anything to fill it: a
                 // working day's eight hours as faint segments
-                DialSegments(units: 8, filled: 8, lineWidth: 8)
+                DialSegments(units: 8, fraction: 1, lineWidth: 8)
                     .stroke(.quaternary, style: StrokeStyle(lineWidth: 8, lineCap: .round))
                     .padding(6)
                     .accessibilityHidden(true)

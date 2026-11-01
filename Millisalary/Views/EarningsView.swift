@@ -30,10 +30,6 @@ struct EarningsView: View {
                             period: period,
                             scale: DialScale(period, workday, settings, at: now)
                         )
-                        // A new dial for each period, so its ring grows in
-                        // from empty: animating from the last period's fill
-                        // ran it backwards over segments that weren't its own
-                        .id(period)
                         .frame(minWidth: 176, maxWidth: 384)
                         Text(workday.status(for: period, at: now))
                             .foregroundStyle(.secondary)
@@ -232,8 +228,8 @@ struct DialScale {
 
 /// The ring fills with the period's progress around the face and the amount
 /// earned so far, its last two of four decimals smaller. The ring grows in
-/// from empty when it appears (each period gets a dial of its own); the
-/// ticks after that apply directly
+/// when it appears, and when the period changes it sweeps from the last
+/// period's fill to the new one; the ticks in between apply directly
 struct EarningsDial: View {
     let earned: Double
     let total: Double
@@ -269,13 +265,13 @@ struct EarningsDial: View {
             let labelRadius = side * 0.453
 
             ZStack {
-                DialSegments(units: scale.units, filled: scale.units, lineWidth: stroke)
+                DialSegments(units: scale.units, fraction: 1, lineWidth: stroke)
                     .stroke(.quaternary, style: StrokeStyle(lineWidth: stroke, lineCap: .round))
                     .frame(width: radius * 2, height: radius * 2)
                 DialSegments(
                     units: scale.units,
                     from: scale.fillStart,
-                    filled: scale.fillStart + shownProgress * scale.unitsPerTotal,
+                    fraction: (scale.fillStart + shownProgress * scale.unitsPerTotal) / scale.units,
                     lineWidth: stroke
                 )
                     .stroke(Color.accentColor, style: StrokeStyle(lineWidth: stroke, lineCap: .round))
@@ -316,6 +312,7 @@ struct EarningsDial: View {
                 + "\(Int((progress * 100).rounded()))% of \(formatCurrency(total, currency: currency))"
         )
         .onAppear(perform: growRing)
+        .onChange(of: period, growRing)
         .onChange(of: progress) {
             if Date.now >= animatingUntil {
                 shownProgress = progress
@@ -328,8 +325,10 @@ struct EarningsDial: View {
             shownProgress = progress
             return
         }
-        animatingUntil = Date.now.addingTimeInterval(0.8)
-        withAnimation(.smooth(duration: 0.7)) {
+        // Ease in and out, which ends on the value: a spring's long tail
+        // near an empty ring left a round cap's dot on screen for a second
+        animatingUntil = Date.now.addingTimeInterval(0.7)
+        withAnimation(.easeInOut(duration: 0.6)) {
             shownProgress = progress
         }
     }
@@ -360,19 +359,21 @@ struct EarningsDial: View {
 }
 
 /// The dial's ring cut into the period's units, from the top clockwise and
-/// filled from `from` to `filled` units (the last unit can be a part of
-/// one). Round caps reach past an arc's ends, so each gap leaves room for
-/// two of them besides the 3° that show, and a fill's ends are pulled in by
-/// a cap. Off the main actor, as `Shape` needs
+/// filled from `from` units to `fraction` of the way round (the last unit
+/// can be a part of one). The fill animates as a fraction of the ring, not
+/// in units, so a switch from This Year's twelve segments to This Month's
+/// twenty-one sweeps from where the fill was. Round caps reach past an
+/// arc's ends, so each gap leaves room for two of them besides the 3° that
+/// show. Off the main actor, as `Shape` needs
 nonisolated struct DialSegments: Shape {
     var units: Double
     var from = 0.0
-    var filled: Double
+    var fraction: Double
     var lineWidth: CGFloat
 
     var animatableData: Double {
-        get { filled }
-        set { filled = newValue }
+        get { fraction }
+        set { fraction = newValue }
     }
 
     func path(in rect: CGRect) -> Path {
@@ -381,21 +382,24 @@ nonisolated struct DialSegments: Shape {
         let cap = Double(lineWidth / 2 / radius) * 180 / .pi
         let gap = 3 + 2 * cap
         let degreesPerUnit = 360 / units
-        let fillFrom = from * degreesPerUnit
-        let fillTo = filled * degreesPerUnit
+        let filled = fraction * units
 
         var path = Path()
         for index in 0..<Int(units.rounded(.up)) {
             let unit = Double(index)
-            let segmentStart = unit * degreesPerUnit
-            let segmentEnd = (unit + min(1, units - unit)) * degreesPerUnit
-            guard fillTo > segmentStart else { break }
-            guard fillFrom < segmentEnd else { continue }
-            let start = segmentStart + gap / 2
-            let end = segmentEnd - gap / 2
+            let length = min(1, units - unit)
+            guard filled > unit else { break }
+            guard from < unit + length else { continue }
+            let start = unit * degreesPerUnit + gap / 2
+            let end = (unit + length) * degreesPerUnit - gap / 2
             guard end > start else { continue }
-            let lower = min(end, max(start, fillFrom + cap))
-            let upper = min(end, max(lower, fillTo - cap))
+            // The unit's share of the fill, laid over the part of the
+            // segment that's drawn, so the head moves at an even pace from
+            // one end to the other. Placing it at the fill's own angle less
+            // a cap held it at the start for the first third of a This Month
+            // day, until the fill caught up with the gap and the cap
+            let lower = start + (end - start) * min(1, max(0, (from - unit) / length))
+            let upper = start + (end - start) * min(1, max(0, (filled - unit) / length))
             let radians = (lower - 90) * .pi / 180
             path.move(to: CGPoint(x: center.x + radius * cos(radians), y: center.y + radius * sin(radians)))
             path.addArc(center: center, radius: radius, startAngle: .degrees(lower - 90), endAngle: .degrees(upper - 90), clockwise: false)
