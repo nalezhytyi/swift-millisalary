@@ -114,10 +114,12 @@ public struct EarningsModel: Sendable {
         self.calendar = calendar
     }
 
-    /// Gregorian in the local time zone, following its changes. Not the
-    /// system calendar: a JS Date is always Gregorian, and a Hebrew,
-    /// Islamic or Persian one chosen in Language & Region would move the
-    /// months, so the paid days, payday, This month and This year
+    /// Gregorian in the local time zone. Not the system calendar: a JS Date
+    /// is always Gregorian, and a Hebrew, Islamic or Persian one chosen in
+    /// Language & Region would move the months, so the paid days, payday,
+    /// This month and This year. Make one when it's needed rather than
+    /// keeping it: on macOS 27 the calendar follows a change of time zone,
+    /// but on older systems it may keep the zone it was made in
     public init() {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = .autoupdatingCurrent

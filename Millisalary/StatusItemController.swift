@@ -13,7 +13,6 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private let open: (Pane?) -> Void
     private let checkForUpdates: () -> Void
     private let menuOpened: () -> Void
-    private let model = EarningsModel()
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     let menu = NSMenu()
     private var amountItems: [NSMenuItem] = []
@@ -80,7 +79,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         let display = settings.amountDisplay(rates)
         let next = MenuBarContent(
             settings: settings,
-            earnings: settings.monthlySalary > 0 ? settings.earnings(at: Clock.now, display, model: model) : nil,
+            earnings: settings.monthlySalary > 0 ? settings.earnings(at: Clock.now, display) : nil,
             currency: display.currency
         )
         guard next != content else { return }
