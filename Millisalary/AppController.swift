@@ -75,11 +75,7 @@ final class AppController {
     /// is given (`source` says who asked, for analytics)
     func show(_ pane: Pane? = nil, source: ActionSource = .shortcut) {
         if let pane {
-            let item: SidebarItem = switch pane {
-            case .earnings: .period(store.settings.selectedPeriod)
-            case .breakdown: .breakdown
-            case .settings: .settings
-            }
+            let item = SidebarItem(pane, period: store.settings.selectedPeriod)
             navigation.select(item, source: source, store: store, analytics: analytics)
         }
         openWindow?(id: Self.mainWindowID)

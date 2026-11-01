@@ -41,6 +41,15 @@ enum SidebarItem: Hashable {
 }
 
 extension SidebarItem {
+    /// The row that shows `pane`: for Earnings, the row of `period`
+    init(_ pane: Pane, period: Period) {
+        self = switch pane {
+        case .earnings: .period(period)
+        case .breakdown: .breakdown
+        case .settings: .settings
+        }
+    }
+
     var pane: Pane {
         switch self {
         case .period: .earnings
@@ -88,11 +97,7 @@ final class Navigation {
     }
 
     func selected(in settings: MillisalaryCore.Settings) -> SidebarItem {
-        switch pane {
-        case .earnings: .period(settings.selectedPeriod)
-        case .breakdown: .breakdown
-        case .settings: .settings
-        }
+        SidebarItem(pane, period: settings.selectedPeriod)
     }
 
     /// Selects a row of the sidebar (select in the Electron app's
