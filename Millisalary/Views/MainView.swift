@@ -42,7 +42,7 @@ struct MainView: View {
         .onChange(of: navigation.columnVisibility) { _, visibility in
             analytics.track("sidebar_toggled", [
                 "visible": .bool(visibility != .detailOnly),
-                "source": .string(navigation.takeToggleSource().rawValue),
+                "source": .string(navigation.takeToggleSource(for: visibility).rawValue),
             ])
         }
     }

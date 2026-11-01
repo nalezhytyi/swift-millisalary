@@ -81,19 +81,25 @@ final class Navigation {
     /// Set when the app was started at login: the window SwiftUI opens at
     /// launch closes again at once
     var hideOnLaunch = false
-    /// The next sidebar toggle's source; SwiftUI's own button (and dragging
-    /// the sidebar shut) change `columnVisibility` without saying so
-    @ObservationIgnored private var toggleSource: ActionSource?
+    /// The last `toggleSidebar`'s source and the visibility it set. SwiftUI's
+    /// own button (and dragging the sidebar shut) change `columnVisibility`
+    /// without saying so. A toggle made while the window is closed (⌃⌘S)
+    /// may never reach the window's `onChange`, so a change is only the
+    /// toggle's when it lands on the visibility the toggle set
+    @ObservationIgnored private var lastToggle: (source: ActionSource, visibility: NavigationSplitViewVisibility)?
 
     func toggleSidebar(source: ActionSource) {
-        toggleSource = source
-        columnVisibility = columnVisibility == .detailOnly ? .all : .detailOnly
+        let visibility: NavigationSplitViewVisibility = columnVisibility == .detailOnly ? .all : .detailOnly
+        lastToggle = (source, visibility)
+        columnVisibility = visibility
     }
 
-    /// The source of the toggle that just happened
-    func takeToggleSource() -> ActionSource {
-        defer { toggleSource = nil }
-        return toggleSource ?? .button
+    /// The source of the change to `visibility` that just happened: the
+    /// last toggle's when it set that visibility, otherwise the button's
+    func takeToggleSource(for visibility: NavigationSplitViewVisibility) -> ActionSource {
+        defer { lastToggle = nil }
+        guard let lastToggle, lastToggle.visibility == visibility else { return .button }
+        return lastToggle.source
     }
 
     func selected(in settings: MillisalaryCore.Settings) -> SidebarItem {
