@@ -28,7 +28,6 @@ struct SettingsView: View {
     /// The fact being dragged; the drag itself carries nothing to read
     @State private var draggedFact: DialFact?
 
-    static let currencies = ["UAH", "USD", "EUR", "PLN", "CZK", "RON"]
     private static let days = (1...31).map(Double.init)
     private static let hours = (1...24).map(Double.init)
 
@@ -111,12 +110,7 @@ struct SettingsView: View {
                 // A bordered field, as in the setup form, rather than the
                 // Form's borderless inline one
                 LabeledContent("Monthly salary") {
-                    TextField("Monthly salary", text: $salaryText, prompt: Text(0, format: .number.precision(.fractionLength(2))))
-                        .labelsHidden()
-                        .textFieldStyle(.roundedBorder)
-                        .multilineTextAlignment(.trailing)
-                        .frame(width: 150)
-                        .focused($salaryFocused)
+                    SalaryField(text: $salaryText, focus: $salaryFocused, stored: settings.monthlySalary.formatted(.number))
                         .onSubmit(commitSalary)
                         .onChange(of: salaryFocused) { _, focused in
                             if !focused { commitSalary() }
@@ -127,19 +121,12 @@ struct SettingsView: View {
                         .onChange(of: settings.monthlySalary, initial: true) { _, salary in
                             salaryText = salary.formatted(.number)
                         }
-                        .onChange(of: salaryText) { old, text in
-                            filterSalary(old, text)
-                        }
                 }
                 Picker("Salary currency", selection: binding(\.monthlySalaryCurrency)) {
-                    ForEach(Self.withCurrent(Self.currencies, settings.monthlySalaryCurrency), id: \.self) {
-                        Text($0)
-                    }
+                    CurrencyOptions(current: settings.monthlySalaryCurrency)
                 }
                 Picker("Display currency", selection: binding(\.earningsCurrency)) {
-                    ForEach(Self.withCurrent(Self.currencies, settings.earningsCurrency), id: \.self) {
-                        Text($0)
-                    }
+                    CurrencyOptions(current: settings.earningsCurrency)
                 }
             } header: {
                 Text("Salary")
@@ -149,7 +136,7 @@ struct SettingsView: View {
 
             Section {
                 Picker("Day of month", selection: edit(Double(settings.payday)) { $0.setPayday($1) }) {
-                    numbers(Self.withCurrent(Self.days, Double(settings.payday)))
+                    numbers(Self.days.including(Double(settings.payday)))
                 }
             } header: {
                 Text("Payday")
@@ -165,10 +152,10 @@ struct SettingsView: View {
         return tab {
             Section {
                 Picker("Working days / month", selection: edit(settings.workingDays) { $0.setWorkingDays($1) }) {
-                    numbers(Self.withCurrent(Self.days, settings.workingDays))
+                    numbers(Self.days.including(settings.workingDays))
                 }
                 Picker("Working hours / day", selection: edit(settings.workingHoursPerDay) { $0.setWorkingHoursPerDay($1) }) {
-                    numbers(Self.withCurrent(Self.hours, settings.workingHoursPerDay))
+                    numbers(Self.hours.including(settings.workingHoursPerDay))
                 }
                 timeRow("Start time", time(settings.startTime) { $0.setStartHour($1) })
                 timeRow("End time", time(settings.endTime) { $0.setEndHour($1) })
@@ -242,18 +229,6 @@ struct SettingsView: View {
         let before = store.settings
         store.update(edit)
         analytics.settingsChanged(from: before, to: store.settings)
-    }
-
-    /// The salary field takes only what a number can have, as a number
-    /// field's formatter does: an edit that adds anything else (a minus, a
-    /// letter) is undone with a beep, and "." or "," becomes the locale's
-    /// decimal separator (salaryInput)
-    private func filterSalary(_ old: String, _ text: String) {
-        // The stored salary, shown again after a commit
-        guard text != store.settings.monthlySalary.formatted(.number) else { return }
-        if let replacement = salaryFieldText(after: old, text) {
-            salaryText = replacement
-        }
     }
 
     /// The salary field commits on Return or when focus leaves it, as a
@@ -410,12 +385,6 @@ struct SettingsView: View {
     }
 
     // MARK: - Pieces
-
-    /// The choices plus the current value when it isn't one of them (hours a
-    /// day follow Start and End, so 09:00-17:20 makes 8.33)
-    static func withCurrent<Value: Comparable>(_ choices: [Value], _ current: Value) -> [Value] {
-        choices.contains(current) ? choices : (choices + [current]).sorted()
-    }
 
     private func numbers(_ values: [Double]) -> some View {
         ForEach(values, id: \.self) { value in

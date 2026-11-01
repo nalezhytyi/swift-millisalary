@@ -18,7 +18,7 @@ struct SalarySetupView: View {
     private static let ordinals: NumberFormatter = {
         let formatter = NumberFormatter()
         formatter.numberStyle = .ordinal
-        formatter.locale = Locale(identifier: "en_US")
+        formatter.locale = .english
         return formatter
     }()
 
@@ -32,18 +32,8 @@ struct SalarySetupView: View {
             Section {
                 LabeledContent("Monthly salary") {
                     HStack(spacing: 6) {
-                        TextField("Monthly salary", text: $salaryText, prompt: Text(0, format: .number.precision(.fractionLength(2))))
-                            .labelsHidden()
-                            .textFieldStyle(.roundedBorder)
-                            .multilineTextAlignment(.trailing)
-                            .frame(width: 150)
-                            .focused($salaryFocused)
+                        SalaryField(text: $salaryText, focus: $salaryFocused)
                             .onSubmit(start)
-                            .onChange(of: salaryText) { old, text in
-                                if let replacement = salaryFieldText(after: old, text) {
-                                    salaryText = replacement
-                                }
-                            }
                         currencyPicker("Salary currency", selection: $draft.monthlySalaryCurrency)
                     }
                 }
@@ -68,7 +58,7 @@ struct SalarySetupView: View {
                     .labelsHidden()
                 }
                 Picker("Payday", selection: Binding { draft.payday } set: { draft.setPayday(Double($0)) }) {
-                    ForEach(SettingsView.withCurrent(Array(1...31), draft.payday), id: \.self) { day in
+                    ForEach(Array(1...31).including(draft.payday), id: \.self) { day in
                         Text("\(Self.ordinals.string(from: day as NSNumber) ?? "\(day)") of the month").tag(day)
                     }
                 }
@@ -145,9 +135,7 @@ struct SalarySetupView: View {
 
     private func currencyPicker(_ label: String, selection: Binding<String>) -> some View {
         Picker(label, selection: selection) {
-            ForEach(SettingsView.withCurrent(SettingsView.currencies, selection.wrappedValue), id: \.self) {
-                Text($0)
-            }
+            CurrencyOptions(current: selection.wrappedValue)
         }
         .labelsHidden()
         .fixedSize()
