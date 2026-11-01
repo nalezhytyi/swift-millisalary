@@ -281,13 +281,16 @@ private struct DialFace: View, Equatable {
 /// can be a part of one). The fill animates as a fraction of the ring, not
 /// in units, so a switch from This Year's twelve segments to This Month's
 /// twenty-one sweeps from where the fill was. Round caps reach past an
-/// arc's ends, so each gap leaves room for two of them besides the 3° that
-/// show. Off the main actor, as `Shape` needs
+/// arc's ends, so by default each gap leaves room for two of them besides
+/// the 3° that show; the menu bar's ring, stroked with butt caps, gives its
+/// own. Off the main actor, as `Shape` needs
 nonisolated struct DialSegments: Shape {
     var units: Double
     var from = 0.0
     var fraction: Double
     var lineWidth: CGFloat
+    /// The degrees between one segment's end and the next one's start
+    var gap: Double?
 
     var animatableData: Double {
         get { fraction }
@@ -298,7 +301,7 @@ nonisolated struct DialSegments: Shape {
         let radius = min(rect.width, rect.height) / 2
         let center = CGPoint(x: rect.midX, y: rect.midY)
         let cap = Double(lineWidth / 2 / radius) * 180 / .pi
-        let gap = 3 + 2 * cap
+        let gap = self.gap ?? 3 + 2 * cap
         let degreesPerUnit = 360 / units
         let filled = fraction * units
 

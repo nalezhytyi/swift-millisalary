@@ -1,5 +1,4 @@
-// Generates the app icon and the menu bar icon into the asset catalog, from
-// the repo root:
+// Generates the app icon into the asset catalog, from the repo root:
 //   swift scripts/generate-icons.swift
 // macOS only, no dependencies. Ported from the Electron app's
 // scripts/generate-icons.swift, which drew the same icons.
@@ -12,8 +11,8 @@
 // grid (824 of 1024 px, with the transparent padding and soft shadow macOS
 // draws icons with).
 //
-// MenuBarIcon.imageset: a ring with eyes and a smile, 16 pt, black with
-// alpha, as a template image: macOS tints it for the light or dark menu bar.
+// The menu bar icon isn't an asset: StatusItemController draws it, a ring of
+// the day's working hours.
 import AppKit
 import CoreGraphics
 import Foundation
@@ -173,64 +172,5 @@ func writeAppIcon(_ icon: CGImage) {
         """, in: folder)
 }
 
-// MARK: - Menu bar icon
-
-func renderMenuBarIcon(points: Int, scale: Int) -> CGImage {
-    let size = points * scale
-    let context = makeContext(size)
-    let s = Double(size)
-    context.setStrokeColor(CGColor(red: 0, green: 0, blue: 0, alpha: 1))
-    context.setFillColor(CGColor(red: 0, green: 0, blue: 0, alpha: 1))
-    context.setLineCap(.round)
-
-    // The face: a ring, two eyes, a smile (y is up in CoreGraphics)
-    let line = 1.3 * Double(scale)
-    context.setLineWidth(line)
-    context.strokeEllipse(in: CGRect(x: line / 2 + 0.5, y: line / 2 + 0.5, width: s - line - 1, height: s - line - 1))
-
-    let eye = 1.1 * Double(scale)
-    for x in [0.36, 0.64] {
-        context.fillEllipse(in: CGRect(x: x * s - eye, y: 0.60 * s - eye, width: eye * 2, height: eye * 2))
-    }
-    context.setLineWidth(1.1 * Double(scale))
-    context.addArc(center: CGPoint(x: 0.5 * s, y: 0.5 * s), radius: 0.24 * s, startAngle: .pi * 1.18, endAngle: .pi * 1.82, clockwise: false)
-    context.strokePath()
-
-    return context.makeImage()!
-}
-
-func writeMenuBarIcon() {
-    let folder = assets.appendingPathComponent("MenuBarIcon.imageset")
-    try? FileManager.default.removeItem(at: folder)
-    try! FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-    writePNG(renderMenuBarIcon(points: 16, scale: 1), to: folder.appendingPathComponent("MenuBarIcon.png"))
-    writePNG(renderMenuBarIcon(points: 16, scale: 2), to: folder.appendingPathComponent("MenuBarIcon@2x.png"))
-    writeContents("""
-        {
-          "images" : [
-            {
-              "filename" : "MenuBarIcon.png",
-              "idiom" : "mac",
-              "scale" : "1x"
-            },
-            {
-              "filename" : "MenuBarIcon@2x.png",
-              "idiom" : "mac",
-              "scale" : "2x"
-            }
-          ],
-          "info" : {
-            "author" : "xcode",
-            "version" : 1
-          },
-          "properties" : {
-            "template-rendering-intent" : "template"
-          }
-        }
-
-        """, in: folder)
-}
-
 writeAppIcon(renderIcon())
-writeMenuBarIcon()
-print("wrote AppIcon.appiconset and MenuBarIcon.imageset in \(assets.path)")
+print("wrote AppIcon.appiconset in \(assets.path)")
