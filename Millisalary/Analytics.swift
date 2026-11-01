@@ -1,5 +1,5 @@
 import AmplitudeSwift
-import Foundation
+import AppKit
 import MillisalaryCore
 import Observation
 
@@ -15,8 +15,10 @@ import Observation
 @Observable
 final class Analytics {
     @ObservationIgnored private let amplitude: Amplitude?
+    @ObservationIgnored private let barrier = QueueBarrier()
     /// Events held back while a value is still being stepped (a time field's
-    /// stepper sends a change per click); the last one goes out
+    /// stepper sends a change per click); the last one goes out, at once
+    /// when the app quits
     @ObservationIgnored private var pending: [String: DispatchWorkItem] = [:]
 
     /// The Electron app's key: a client key, public by design
@@ -47,6 +49,12 @@ final class Analytics {
             enableAutoCaptureRemoteConfig: false,
             enableDiagnostics: false
         ))
+        amplitude?.add(plugin: barrier)
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.willTerminateNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.sendPendingNow() }
+        }
     }
 
     func track(_ event: MillisalaryCore.AnalyticsEvent) {
@@ -73,6 +81,25 @@ final class Analytics {
         MillisalaryCore.AnalyticsEvent.settingsChanges(from: before, to: after).forEach(track)
     }
 
+    /// The app is quitting, so the held-back events go out now. The SDK's
+    /// `track` only queues an event: its own serial queue stores it on disk
+    /// (what isn't uploaded by then goes at the next launch), and the
+    /// process exits right after this without waiting for that queue. So
+    /// this waits, up to a second, for a marker tracked after them to come
+    /// through. A flush wouldn't help: it's queued the same way, and its
+    /// upload couldn't finish before the exit
+    private func sendPendingNow() {
+        guard let amplitude, !pending.isEmpty else { return }
+        let sends = pending.values
+        pending.removeAll()
+        for send in sends {
+            send.perform()
+            send.cancel()
+        }
+        amplitude.track(event: QueueBarrier.marker())
+        _ = barrier.reached.wait(timeout: .now() + 1)
+    }
+
     private func send(_ event: MillisalaryCore.AnalyticsEvent, with amplitude: Amplitude) {
         let properties = event.properties.mapValues { value -> Any in
             switch value {
@@ -82,5 +109,26 @@ final class Analytics {
             }
         }
         amplitude.track(eventType: event.name, eventProperties: properties.isEmpty ? nil : properties)
+    }
+}
+
+/// Tells when the SDK's queue has got past the events tracked so far: it
+/// runs every plugin for one event, the destination that writes it to disk
+/// included, before it starts on the next, so once the marker reaches this
+/// plugin every earlier event is stored. The marker goes no further, and
+/// its session id of -1 and its own event id keep it out of the session and
+/// the event numbering
+private nonisolated final class QueueBarrier: BeforePlugin {
+    private static let eventType = "millisalary_queue_barrier"
+    let reached = DispatchSemaphore(value: 0)
+
+    static func marker() -> BaseEvent {
+        BaseEvent(eventId: 0, sessionId: -1, eventType: eventType)
+    }
+
+    override func execute(event: BaseEvent) -> BaseEvent? {
+        guard event.eventType == Self.eventType else { return event }
+        reached.signal()
+        return nil
     }
 }
