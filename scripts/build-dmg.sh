@@ -30,7 +30,7 @@ fi
 # Starts the executable (this Mac's architecture), which with --smoke-test
 # quits as soon as dyld has loaded it and every framework it links, before
 # any of the app runs: no settings, analytics or window. Killed after 20 s
-if ! perl -e 'alarm shift; exec @ARGV' 20 "$executable" --smoke-test; then
+if ! perl -e 'alarm shift; exec @ARGV or die "exec $ARGV[0]: $!\n"' 20 "$executable" --smoke-test; then
   echo "The app doesn't start: dyld refused it or a framework it links (see above), or it hung." >&2
   exit 1
 fi
