@@ -22,7 +22,9 @@ struct MillisalaryApp: App {
                 .environment(app.splash)
                 .environment(app.analytics)
         }
-        .defaultSize(width: 820, height: 580)
+        // A first launch's size, tall enough for all of Breakdown without
+        // scrolling; after that macOS restores the window's last frame
+        .defaultSize(width: 860, height: 690)
         .windowResizability(.contentMinSize)
         .commands {
             AppCommands(app: app)
