@@ -123,11 +123,21 @@ private let halfPastSeven = fivePM.addingTimeInterval(2.5 * 3600)
     let earnings = EarningsModel(calendar: calendar)
         .earnings(at: Date(timeIntervalSince1970: 1_793_226_600), settings.earningsSettings(exchangeRate: 1))
 
-    let endOfDay = NotificationContent(kind: .endOfDay, earnings: earnings, currency: "UAH")
+    let english = Locale(identifier: "en")
+    let endOfDay = NotificationContent(kind: .endOfDay, earnings: earnings, currency: "UAH", locale: english)
     #expect(endOfDay.title == "Workday complete")
     #expect(endOfDay.body == "You earned 1 000,00 ₴.")
 
-    let payday = NotificationContent(kind: .payday, earnings: earnings, currency: "UAH")
+    let payday = NotificationContent(kind: .payday, earnings: earnings, currency: "UAH", locale: english)
     #expect(payday.title == "It's payday")
     #expect(payday.body == "22 000,00 ₴ paycheck.")
+
+    let ukrainian = Locale(identifier: "uk")
+    let endOfDayUK = NotificationContent(kind: .endOfDay, earnings: earnings, currency: "UAH", locale: ukrainian)
+    #expect(endOfDayUK.title == "Робочий день завершено")
+    #expect(endOfDayUK.body == "Ви заробили 1 000,00 ₴.")
+
+    let paydayUK = NotificationContent(kind: .payday, earnings: earnings, currency: "UAH", locale: ukrainian)
+    #expect(paydayUK.title == "День виплати")
+    #expect(paydayUK.body == "Виплата: 22 000,00 ₴.")
 }

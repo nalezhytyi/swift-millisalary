@@ -7,6 +7,8 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 xcodegen generate --quiet
+# Every text in the string catalogs translated
+swift scripts/check-localizations.swift
 xcodebuild -project Millisalary.xcodeproj -scheme Millisalary -configuration Release \
   -destination "generic/platform=macOS" -derivedDataPath build/DerivedData -quiet build
 

@@ -55,6 +55,11 @@ targets:
         CFBundleName: $(APP_DISPLAY_NAME)
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        # The languages the app is translated into (Localizable.xcstrings
+        # here and in MillisalaryCore): macOS picks one from the user's
+        # preferred languages, or the one chosen for Millisalary in System
+        # Settings > General > Language & Region > Applications
+        CFBundleLocalizations: [en, uk]
         LSApplicationCategoryType: public.app-category.finance
         LSMinimumSystemVersion: $(MACOSX_DEPLOYMENT_TARGET)
         NSHumanReadableCopyright: © 2026 nalezhytyi
@@ -79,6 +84,10 @@ targets:
         # launch. Without notarization it adds nothing
         ENABLE_HARDENED_RUNTIME: NO
         GENERATE_INFOPLIST_FILE: NO
+        # The compiler writes the texts the code localizes into .stringsdata
+        # files, which scripts/check-localizations.swift compares with the
+        # catalog (MillisalaryCore's get them by its defaultLocalization)
+        SWIFT_EMIT_LOC_STRINGS: YES
       configs:
         # A dev build never shares settings, notifications or the login
         # item with an installed Millisalary

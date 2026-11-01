@@ -1,0 +1,105 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "It's payday" : {
+      "comment" : "The payday notification's title",
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "День виплати"
+          }
+        }
+      }
+    },
+    "This hour" : {
+      "comment" : "A period's name in the menu bar's rows and Breakdown",
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ця година"
+          }
+        }
+      }
+    },
+    "This month" : {
+      "comment" : "A period's name in the menu bar's rows and Breakdown",
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Цей місяць"
+          }
+        }
+      }
+    },
+    "This week" : {
+      "comment" : "A period's name in the menu bar's rows and Breakdown",
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Цей тиждень"
+          }
+        }
+      }
+    },
+    "This year" : {
+      "comment" : "A period's name in the menu bar's rows and Breakdown",
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Цей рік"
+          }
+        }
+      }
+    },
+    "Today" : {
+      "comment" : "A period's name in the menu bar's rows and Breakdown",
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сьогодні"
+          }
+        }
+      }
+    },
+    "Workday complete" : {
+      "comment" : "The end-of-day notification's title",
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Робочий день завершено"
+          }
+        }
+      }
+    },
+    "You earned %@." : {
+      "comment" : "The end-of-day notification's text: the day's pay",
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ви заробили %@."
+          }
+        }
+      }
+    },
+    "%@ paycheck." : {
+      "comment" : "The payday notification's text: the paycheck's amount",
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Виплата: %@."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

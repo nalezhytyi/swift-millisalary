@@ -23,9 +23,11 @@ private let thursdayAfternoon = model.calendar.date(
     from: DateComponents(year: 2026, month: 10, day: 29, hour: 13, minute: 30)
 )!
 
-private func content(_ settings: Settings) -> MenuBarContent {
+// The tests pin the language: without one the rows follow the preferred
+// languages of whoever runs them
+private func content(_ settings: Settings, language: String = "en") -> MenuBarContent {
     let earnings = model.earnings(at: thursdayAfternoon, settings.earningsSettings(exchangeRate: 1))
-    return MenuBarContent(settings: settings, earnings: earnings, currency: "UAH")
+    return MenuBarContent(settings: settings, earnings: earnings, currency: "UAH", locale: Locale(identifier: language))
 }
 
 @Test func titleIsTodaysEarningsByDefault() {
@@ -53,6 +55,18 @@ private func content(_ settings: Settings) -> MenuBarContent {
         "This month: 20 562,50 ₴",
         "This year: 218 562,50 ₴",
     ])
+}
+
+@Test func rowsInUkrainian() {
+    #expect(content(settings(), language: "uk").rows == [
+        "Ця година: 62,50 ₴",
+        "Сьогодні: 562,50 ₴",
+        "Цей тиждень: 3 562,50 ₴",
+        "Цей місяць: 20 562,50 ₴",
+        "Цей рік: 218 562,50 ₴",
+    ])
+    // The amount itself is formatted the same in either language
+    #expect(content(settings(), language: "uk").title == "562,50 ₴")
 }
 
 @Test func nothingButTheIconWithoutASalary() {

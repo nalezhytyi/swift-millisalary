@@ -4,13 +4,16 @@ public enum Period: String, CaseIterable, Sendable {
     case hour, day, week, month, year
 
     /// "This hour", "Today", …: how the menu bar and Breakdown name it
-    public var label: String {
+    public var label: String { label(in: nil) }
+
+    /// The label in `locale`'s language, or the app's when nil
+    public func label(in locale: Locale?) -> String {
         switch self {
-        case .hour: "This hour"
-        case .day: "Today"
-        case .week: "This week"
-        case .month: "This month"
-        case .year: "This year"
+        case .hour: localized("This hour", locale)
+        case .day: localized("Today", locale)
+        case .week: localized("This week", locale)
+        case .month: localized("This month", locale)
+        case .year: localized("This year", locale)
         }
     }
 }

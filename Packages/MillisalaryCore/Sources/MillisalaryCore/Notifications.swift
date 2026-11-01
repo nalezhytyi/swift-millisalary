@@ -98,15 +98,18 @@ public struct NotificationContent: Equatable, Sendable {
 
     /// A finished workday earned its whole day's pay: `day.total`, since
     /// `day.earned` would be 0 for an overnight window that ended after
-    /// midnight, today's not having begun
-    public init(kind: NotificationKind, earnings: EarningsSnapshot, currency: String) {
+    /// midnight, today's not having begun. In `locale`'s language, or the
+    /// app's when nil
+    public init(kind: NotificationKind, earnings: EarningsSnapshot, currency: String, locale: Locale? = nil) {
         switch kind {
         case .endOfDay:
-            title = "Workday complete"
-            body = "You earned \(formatCurrency(earnings.day.total, currency: currency))."
+            let amount = formatCurrency(earnings.day.total, currency: currency)
+            title = localized("Workday complete", locale)
+            body = localized("You earned \(amount).", locale)
         case .payday:
-            title = "It's payday"
-            body = "\(formatCurrency(earnings.nextPayday.amount, currency: currency)) paycheck."
+            let amount = formatCurrency(earnings.nextPayday.amount, currency: currency)
+            title = localized("It's payday", locale)
+            body = localized("\(amount) paycheck.", locale)
         }
     }
 }
