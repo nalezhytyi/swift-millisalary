@@ -82,7 +82,10 @@ final class ExchangeRateStore {
                     Self.log.info("\(pair.key, privacy: .public) is \(rate, privacy: .public)")
                     retryDelay = ExchangeRateAPI.firstRetryDelay
                     delay = ExchangeRateAPI.refreshInterval
-                } catch is CancellationError {
+                } catch where Task.isCancelled {
+                    // Another pair followed, or a refresh, while the request
+                    // was out: not a failure. URLSession throws
+                    // URLError(.cancelled) then, not CancellationError
                     return
                 } catch {
                     Self.log.error("\(pair.key, privacy: .public) failed, retrying in \(Int(retryDelay), privacy: .public) s: \(error.localizedDescription, privacy: .public)")
