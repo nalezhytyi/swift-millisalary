@@ -18,12 +18,13 @@ final class FaceAnimation {
     static let largestFace: CGFloat = 96
 
     private(set) var frames: [CGImage] = []
-    private(set) var frameCount = 0
+    /// The background decode has finished with at least one frame. The
+    /// cycle runs over what it produced: a frame that fails to decode is
+    /// left out instead of keeping every face on frame 0
+    private(set) var isLoaded = false
     /// When frame 0 is shown; the cycle runs from it
     @ObservationIgnored var epoch = Date.now
     @ObservationIgnored private var task: Task<Void, Never>?
-
-    var isLoaded: Bool { frameCount > 0 && frames.count == frameCount }
 
     func frame(at date: Date) -> CGImage? {
         guard isLoaded else { return frames.first }
@@ -38,16 +39,19 @@ final class FaceAnimation {
         else { return }
 
         let pixels = Int(Self.largestFace * (NSScreen.main?.backingScaleFactor ?? 2))
-        frameCount = CGImageSourceGetCount(source)
+        let count = CGImageSourceGetCount(source)
         frames = Self.decode(url, frames: 0..<1, pixels: pixels)
-        task = Task { [weak self, frameCount] in
+        task = Task { [weak self] in
             let all = await Task.detached(priority: .userInitiated) {
-                Self.decode(url, frames: 0..<frameCount, pixels: pixels)
+                Self.decode(url, frames: 0..<count, pixels: pixels)
             }.value
             guard let self, !Task.isCancelled else { return }
-            frames = all
-            epoch = .now
             task = nil
+            // Nothing decoded: the faces stay as they are
+            guard !all.isEmpty else { return }
+            frames = all
+            isLoaded = true
+            epoch = .now
         }
     }
 
@@ -55,6 +59,7 @@ final class FaceAnimation {
         task?.cancel()
         task = nil
         frames = []
+        isLoaded = false
     }
 
     private nonisolated static func decode(_ url: URL, frames: Range<Int>, pixels: Int) -> [CGImage] {
