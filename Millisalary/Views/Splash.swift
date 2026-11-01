@@ -63,7 +63,7 @@ final class SplashModel {
             if reduceMotion {
                 await wait(Self.reducedMotionHold) { self.skipped }
             } else {
-                // The cycle starts from frame 0 once every frame is ready
+                // The cycle starts from frame 0 once the frames are decoded
                 await wait(5) { face.isLoaded }
                 face.epoch = .now
                 await wait(Self.cycle) { self.skipped }
