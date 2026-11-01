@@ -70,11 +70,15 @@ final class UpdateChecker {
 
     /// Check for Updates… in the app menu (`.menu`) and the menu bar item's
     /// menu (`.tray`). A click while a check is still out (the request, or
-    /// its dialog) adds nothing: one dialog answers both. The click is
-    /// still reported, as the Electron app reported every one
+    /// its dialog) only brings the app forward, so that dialog shows: one
+    /// dialog answers both. The click is still reported, as the Electron
+    /// app reported every one
     func checkFromMenu(source: ActionSource) {
         analytics.track("update_check_clicked", ["source": .string(source.rawValue)])
-        guard !isCheckingFromMenu else { return }
+        guard !isCheckingFromMenu else {
+            NSApp.activate()
+            return
+        }
         isCheckingFromMenu = true
         Task {
             show(await fetch())
