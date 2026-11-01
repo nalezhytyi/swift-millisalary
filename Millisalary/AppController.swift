@@ -13,7 +13,7 @@ final class AppController {
     let navigation = Navigation()
     let ticker = Ticker()
     let rates = ExchangeRateStore()
-    let face = FaceAnimation()
+    let face = FrameAnimation.moneyFace()
     let splash = SplashModel()
     let analytics = Analytics()
     private(set) lazy var notifications = NotificationController(store: store, rates: rates, analytics: analytics) {

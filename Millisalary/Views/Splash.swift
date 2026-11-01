@@ -55,7 +55,7 @@ final class SplashModel {
     }
 
     /// Runs the splash once its view is on screen
-    func run(face: FaceAnimation, reduceMotion: Bool, opensOnDial: @escaping () -> Bool) {
+    func run(face: FrameAnimation, reduceMotion: Bool, opensOnDial: @escaping () -> Bool) {
         guard !started, phase != .done else { return }
         started = true
 
@@ -108,7 +108,7 @@ final class SplashModel {
 /// The splash over the whole window, sidebar and toolbar included
 struct SplashView: View {
     @Environment(SplashModel.self) private var splash
-    @Environment(FaceAnimation.self) private var face
+    @Environment(FrameAnimation.self) private var face
     @Environment(Navigation.self) private var navigation
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// Where the overlay itself sits in the window, to place the face in
@@ -149,7 +149,7 @@ struct SplashView: View {
         if splash.phase == .flying, let target = splash.dialFaceFrame {
             return target.offsetBy(dx: -origin.x, dy: -origin.y)
         }
-        let side = FaceAnimation.largestFace
+        let side = FrameAnimation.largestFace
         return CGRect(x: (size.width - side) / 2, y: (size.height - side) / 2, width: side, height: side)
     }
 }

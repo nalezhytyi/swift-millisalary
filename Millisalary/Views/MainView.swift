@@ -7,7 +7,7 @@ struct MainView: View {
     @Environment(SettingsStore.self) private var store
     @Environment(Navigation.self) private var navigation
     @Environment(\.dismissWindow) private var dismissWindow
-    @Environment(FaceAnimation.self) private var face
+    @Environment(FrameAnimation.self) private var face
     @Environment(SplashModel.self) private var splash
     @Environment(Analytics.self) private var analytics
 
