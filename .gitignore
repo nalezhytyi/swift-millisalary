@@ -16,3 +16,6 @@ xcuserdata/
 
 # Local build output (scripts, xcodebuild -derivedDataPath)
 /build/
+
+# Task plans (/task-plan, /task-run): local working notes, not part of the repo
+/tasks/
