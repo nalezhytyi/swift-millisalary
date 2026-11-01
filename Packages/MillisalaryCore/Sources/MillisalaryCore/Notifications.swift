@@ -64,17 +64,26 @@ public enum NotificationTiming {
     /// few days' worth is plenty
     public static let keptKeys = 10
 
+    /// `previouslyScheduled` is what the settings of the previous check
+    /// scheduled around `now`, when they have changed since (nil when they
+    /// haven't, and at launch). Then a due notification only goes out if
+    /// the old settings had it due at the same time too, and the check just
+    /// hadn't come to it yet; one the change made due, by turning it on
+    /// after its time or moving the end of the day before now, is only
+    /// marked as handled. The Electron app sent those up to 3 h late
     public static func due(
         _ scheduled: [ScheduledNotification],
         at now: Date,
-        handled: [String]
+        handled: [String],
+        previouslyScheduled: [ScheduledNotification]? = nil
     ) -> (send: [ScheduledNotification], handled: [String]) {
         var handled = handled
         var send: [ScheduledNotification] = []
 
         for notification in scheduled where !handled.contains(notification.key) && now >= notification.at {
             handled = Array((handled + [notification.key]).suffix(keptKeys))
-            if now.timeIntervalSince(notification.at) <= grace {
+            if now.timeIntervalSince(notification.at) <= grace,
+               previouslyScheduled?.contains(notification) ?? true {
                 send.append(notification)
             }
         }

@@ -23,6 +23,9 @@ final class NotificationController {
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private var clicks: ClickHandler?
     @ObservationIgnored private var handled: [String]
+    /// The settings the last check went by, to tell what a change of them
+    /// made due; nil until the first check at launch
+    @ObservationIgnored private var checkedSettings: Settings?
     @ObservationIgnored private var wantedNotifications = false
 
     private static let handledKey = "notificationsHandled"
@@ -120,11 +123,17 @@ final class NotificationController {
         // Made for each check, in the time zone of the moment, rather than
         // relying on a long-lived calendar to follow a change of zone
         let model = EarningsModel()
+        var previouslyScheduled: [ScheduledNotification]?
+        if let checkedSettings, checkedSettings != settings {
+            previouslyScheduled = model.scheduledNotifications(around: now, settings: checkedSettings)
+        }
         let due = NotificationTiming.due(
             model.scheduledNotifications(around: now, settings: settings),
             at: now,
-            handled: handled
+            handled: handled,
+            previouslyScheduled: previouslyScheduled
         )
+        checkedSettings = settings
         if due.handled != handled {
             handled = due.handled
             defaults.set(handled, forKey: Self.handledKey)
