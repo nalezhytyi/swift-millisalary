@@ -22,6 +22,15 @@ settings:
     DEVELOPMENT_TEAM: ""
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     DEAD_CODE_STRIPPING: YES
+  configs:
+    Release:
+      # A plain `build` only strips with deployment postprocessing on (an
+      # archive turns it on itself): the symbol table was more than half of
+      # the executable. The dSYM is made before the strip
+      DEPLOYMENT_POSTPROCESSING: YES
+      # Smaller code (about 100 KB); the CPU time goes to SwiftUI, not to
+      # the app's own code
+      SWIFT_OPTIMIZATION_LEVEL: -Osize
 
 packages:
   MillisalaryCore:

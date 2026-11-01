@@ -42,6 +42,7 @@ ln -s /Applications "$staging/Applications"
 
 dmg="build/Millisalary-${version}.dmg"
 rm -f "$dmg"
+# LZMA (ULMO, macOS 10.15+): a fifth smaller than zlib's UDZO
 hdiutil create -quiet -volname "Millisalary ${version}" -srcfolder "$staging" \
-  -fs HFS+ -format UDZO -ov "$dmg"
+  -fs HFS+ -format ULMO -ov "$dmg"
 echo "$dmg"
