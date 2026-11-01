@@ -1,7 +1,7 @@
 import MillisalaryCore
 import SwiftUI
 
-@main
+/// Started from main.swift, after its `--smoke-test` check
 struct MillisalaryApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
