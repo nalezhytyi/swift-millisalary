@@ -1,5 +1,7 @@
 // The settings form's normalizers (salaryForm.ts in the Electron app)
 
+import Foundation
+
 public let defaultWorkingHoursPerDay: Double = 8
 public let defaultWorkingDays: Double = 22
 
@@ -37,3 +39,36 @@ public func workingHoursPerDay(from start: TimeOfDay?, to end: TimeOfDay?) -> Do
     guard hours > 0 else { return defaultWorkingHoursPerDay }
     return (hours * 100).rounded() / 100
 }
+
+/// What the salary field keeps of an edit, as a number field's formatter
+/// would: digits, spaces and the locale's separators, with one decimal
+/// separator. A "." or "," that isn't the locale's grouping separator
+/// becomes its decimal one, since the parse would otherwise stop there and
+/// drop the rest (54321.50 read as 54321 in uk_UA). Nil when the edit adds
+/// anything else, a minus or a letter included
+public func salaryInput(_ text: String, locale: Locale = .autoupdatingCurrent) -> String? {
+    let decimal = locale.decimalSeparator ?? "."
+    let grouping = locale.groupingSeparator ?? ""
+    var input = ""
+    var hasDecimal = false
+
+    for character in text {
+        var piece = String(character)
+        if piece == "." || piece == ",", piece != grouping {
+            piece = decimal
+        }
+        if piece == decimal {
+            guard !hasDecimal else { return nil }
+            hasDecimal = true
+        } else if !(character.unicodeScalars.allSatisfy { $0.properties.numericType == .decimal })
+                    && piece != grouping && !salarySpaces.contains(piece) {
+            return nil
+        }
+        input += piece
+    }
+
+    return input
+}
+
+/// A plain space, and the no-break ones the formatted salary groups with
+private let salarySpaces: Set = [" ", "\u{00A0}", "\u{202F}"]

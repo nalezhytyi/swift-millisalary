@@ -37,6 +37,9 @@ struct SettingsView: View {
                     .onChange(of: settings.monthlySalary, initial: true) { _, salary in
                         salaryText = salary.formatted(.number)
                     }
+                    .onChange(of: salaryText) { old, text in
+                        filterSalary(old, text)
+                    }
                 Picker("Salary currency", selection: binding(\.monthlySalaryCurrency)) {
                     ForEach(withCurrent(Self.currencies, settings.monthlySalaryCurrency), id: \.self) {
                         Text($0)
@@ -168,11 +171,27 @@ struct SettingsView: View {
         analytics.settingsChanged(from: before, to: store.settings)
     }
 
+    /// The salary field takes only what a number can have, as a number
+    /// field's formatter does: an edit that adds anything else (a minus, a
+    /// letter) is undone with a beep, and "." or "," becomes the locale's
+    /// decimal separator (salaryInput)
+    private func filterSalary(_ old: String, _ text: String) {
+        // The stored salary, shown again after a commit
+        guard text != store.settings.monthlySalary.formatted(.number) else { return }
+        if let input = salaryInput(text) {
+            if input != text { salaryText = input }
+        } else {
+            NSSound.beep()
+            salaryText = old
+        }
+    }
+
     /// The salary field commits on Return or when focus leaves it, as a
     /// native number field does, and then shows the stored salary again:
-    /// an amount the validator rejects (below 0) or text that isn't a
-    /// number goes back to it. A `TextField(value:format:)` kept showing a
-    /// rejected amount, since the stored one it reads hadn't changed
+    /// an amount the validator rejects or text that doesn't parse (a lone
+    /// separator, nothing at all) goes back to it. A
+    /// `TextField(value:format:)` kept showing a rejected amount, since
+    /// the stored one it reads hadn't changed
     private func commitSalary() {
         // Passing through the field doesn't round the stored amount to the
         // digits shown
