@@ -21,7 +21,6 @@ final class NotificationController {
     @ObservationIgnored private let analytics: Analytics
     @ObservationIgnored private let showWindow: @MainActor () -> Void
     @ObservationIgnored private let defaults: UserDefaults
-    @ObservationIgnored private let model = EarningsModel()
     @ObservationIgnored private var clicks: ClickHandler?
     @ObservationIgnored private var handled: [String]
     @ObservationIgnored private var wantedNotifications = false
@@ -118,6 +117,9 @@ final class NotificationController {
     private func check() {
         let settings = store.settings
         let now = Clock.now
+        // Made for each check, in the time zone of the moment, rather than
+        // relying on a long-lived calendar to follow a change of zone
+        let model = EarningsModel()
         let due = NotificationTiming.due(
             model.scheduledNotifications(around: now, settings: settings),
             at: now,

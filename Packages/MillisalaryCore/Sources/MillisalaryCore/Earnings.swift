@@ -104,14 +104,24 @@ public struct EarningsSnapshot: Equatable, Sendable {
 
 /// The earnings model, ported from calculations.ts in the Electron app and
 /// kept equal to it by the parity tests. Days and months are the
-/// calendar's (its time zone is the local one a JS Date would use), times
-/// are whole milliseconds like a JS Date's, and the arithmetic runs in the
-/// same order, so the results match to the bit.
+/// calendar's (Gregorian, in the local time zone a JS Date would use),
+/// times are whole milliseconds like a JS Date's, and the arithmetic runs
+/// in the same order, so the results match to the bit.
 public struct EarningsModel: Sendable {
     public var calendar: Calendar
 
-    public init(calendar: Calendar = .autoupdatingCurrent) {
+    public init(calendar: Calendar) {
         self.calendar = calendar
+    }
+
+    /// Gregorian in the local time zone, following its changes. Not the
+    /// system calendar: a JS Date is always Gregorian, and a Hebrew,
+    /// Islamic or Persian one chosen in Language & Region would move the
+    /// months, so the paid days, payday, This month and This year
+    public init() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = .autoupdatingCurrent
+        self.init(calendar: calendar)
     }
 
     private static let defaultStartMinutes: Double = 9 * 60
