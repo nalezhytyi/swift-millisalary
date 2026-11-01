@@ -85,10 +85,38 @@ private struct SidebarView: View {
                 row(.breakdown)
             }
         }
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            SidebarFooter()
+        }
     }
 
     private func row(_ item: SidebarItem) -> some View {
         Label(item.title, systemImage: item.symbol)
             .tag(item)
+    }
+}
+
+/// Under the sidebar's rows: a gear that opens the Settings window, as ⌘,
+/// and the menu bar item's Settings… do, lined up with the rows' icons
+private struct SidebarFooter: View {
+    @Environment(\.openSettings) private var openSettings
+    @Environment(Analytics.self) private var analytics
+
+    var body: some View {
+        HStack {
+            Button {
+                analytics.track("settings_opened", ["source": .string(ActionSource.sidebar.rawValue)])
+                openSettings()
+            } label: {
+                Image(systemName: "gearshape")
+                    .imageScale(.large)
+            }
+            .buttonStyle(.borderless)
+            .help("Settings")
+            .accessibilityLabel("Settings")
+            Spacer()
+        }
+        .padding(.leading, 20)
+        .padding(.vertical, 12)
     }
 }
