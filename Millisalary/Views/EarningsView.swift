@@ -101,44 +101,86 @@ struct WorkdayState {
         }
     }
 
-    /// "3 h 30 min left today, until 17:00", or when earning starts again
+    /// What the line under the dial depends on: it changes once a minute at
+    /// most, and only then is the sentence looked up again, rather than on
+    /// every tick
+    private struct StatusKey: Equatable {
+        let minutesLeft: Int?
+        /// Monday is 1; 0 when the line doesn't count the day (not This Week)
+        let weekday: Int
+        let window: WorkingWindow
+        let isScheduled: Bool
+        let beforeStart: Bool
+        let nextStart: Date?
+        let nextDays: Int?
+        let locale: Locale
+    }
+    private static let statusMemo = DayMemo<StatusKey, String>()
+
+    /// "3 h 30 min left today, until 17:00", or when earning starts again.
+    /// Each line is one text of the catalog, whole, the opening sentence
+    /// included: a translation moves the parts about and inflects them
     func status(for period: Period, at now: Date) -> String {
-        let time = Date.FormatStyle.dateTime.hour().minute()
-        if isEarning {
-            let left = Self.duration(window.end.timeIntervalSince(now))
-            if period == .week {
-                let weekday = (EarningsModel().calendar.component(.weekday, from: now) + 5) % 7 + 1
-                return "Day \(weekday) of 5, \(left) left today"
+        let key = StatusKey(
+            minutesLeft: isEarning ? Int((window.end.timeIntervalSince(now) / 60).rounded(.up)) : nil,
+            weekday: isEarning && period == .week ? (EarningsModel().calendar.component(.weekday, from: now) + 5) % 7 + 1 : 0,
+            window: window,
+            isScheduled: isScheduled,
+            beforeStart: now < window.start,
+            nextStart: next?.start,
+            nextDays: next?.days,
+            locale: .app
+        )
+        return Self.statusMemo.value(for: key) { status(key) }
+    }
+
+    private func status(_ key: StatusKey) -> String {
+        if let minutesLeft = key.minutesLeft {
+            let left = Self.duration(minutes: minutesLeft)
+            if key.weekday > 0 {
+                return String(localized: "Day \(key.weekday) of 5, \(left) left today")
             }
-            return "\(left) left today, until \(window.end.formatted(time))"
+            return String(localized: "\(left) left today, until \(window.end.formatted(.clock))")
         }
-        if isScheduled && now < window.start {
-            return "Earning starts today at \(window.start.formatted(time))"
+        if isScheduled && key.beforeStart {
+            return String(localized: "Earning starts today at \(window.start.formatted(.clock))")
         }
-        let opening = isScheduled ? "Done for today." : "Day off."
-        guard let next else { return opening }
-        let when = switch next.days {
-        case 1: "tomorrow"
-        case ..<7: next.start.formatted(.dateTime.weekday(.wide).locale(.english))
-        default: "on " + next.start.formatted(.dateTime.day().month(.wide).locale(.english))
+        guard let next else {
+            return isScheduled ? String(localized: "Done for today.") : String(localized: "Day off.")
         }
-        return "\(opening) Earning resumes \(when) at \(next.start.formatted(time))"
+        let time = next.start.formatted(.clock)
+        switch next.days {
+        case 1:
+            return isScheduled
+                ? String(localized: "Done for today. Earning resumes tomorrow at \(time)")
+                : String(localized: "Day off. Earning resumes tomorrow at \(time)")
+        case ..<7:
+            let weekday = next.start.formatted(.dateTime.weekday(.wide).locale(.app))
+            return isScheduled
+                ? String(localized: "Done for today. Earning resumes \(weekday) at \(time)")
+                : String(localized: "Day off. Earning resumes \(weekday) at \(time)")
+        default:
+            let date = next.start.formatted(.dateTime.day().month(.wide).locale(.app))
+            return isScheduled
+                ? String(localized: "Done for today. Earning resumes on \(date) at \(time)")
+                : String(localized: "Day off. Earning resumes on \(date) at \(time)")
+        }
     }
 
     /// "3 h 30 min", rounded up to the minute as a countdown is
-    private static func duration(_ seconds: TimeInterval) -> String {
-        let minutes = Int((seconds / 60).rounded(.up))
+    private static func duration(minutes: Int) -> String {
         switch (minutes / 60, minutes % 60) {
-        case (0, let minutes): return "\(minutes) min"
-        case (let hours, 0): return "\(hours) h"
-        case (let hours, let minutes): return "\(hours) h \(minutes) min"
+        case (0, let minutes): return String(localized: "\(minutes) min")
+        case (let hours, 0): return String(localized: "\(hours) h")
+        case (let hours, let minutes): return String(localized: "\(hours) h \(minutes) min")
         }
     }
 }
 
 /// One value kept until its key changes: what the Earnings pane works out
 /// once a day (the next paid day, the month's paid days, each a loop of
-/// calendar arithmetic) rather than on every 100 ms tick. The keys hold the
+/// calendar arithmetic) or once a minute (the line under the dial) rather
+/// than on every 100 ms tick. The keys hold the
 /// day or month as the model's calendar starts it, so a change of time zone
 /// makes a new one
 final class DayMemo<Key: Equatable, Value> {

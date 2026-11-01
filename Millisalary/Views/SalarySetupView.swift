@@ -18,9 +18,32 @@ struct SalarySetupView: View {
     private static let ordinals: NumberFormatter = {
         let formatter = NumberFormatter()
         formatter.numberStyle = .ordinal
-        formatter.locale = .english
+        formatter.locale = .app
         return formatter
     }()
+
+    /// "10th" in English; in the other languages the number alone, which the
+    /// translation inflects ("10-го числа"): their ordinals agree with a
+    /// noun the formatter doesn't know ("10-ий"). The catalog's entry for
+    /// "%@ of the month" says so
+    private static func day(_ day: Int) -> String {
+        Locale.appLanguage == .english ? ordinals.string(from: day as NSNumber) ?? "\(day)" : "\(day)"
+    }
+
+    /// "Everything else is in Settings.", the link's words in the accent
+    /// colour. One sentence, since a translation inflects the link's words
+    /// ("у налаштуваннях"): the catalog marks them as a markdown link, which
+    /// becomes the colour here. The whole sentence is the button, so it
+    /// takes keyboard focus and reads as one to VoiceOver, which a link
+    /// inside a Text did neither
+    private static var settingsHint: AttributedString {
+        var text = AttributedString(localized: "Everything else is in [Settings](millisalary-settings:).")
+        for range in text.runs.filter({ $0.link != nil }).map(\.range) {
+            text[range].link = nil
+            text[range].swiftUI.foregroundColor = .accentColor
+        }
+        return text
+    }
 
     private var salary: Double? {
         guard let salary = try? Double(salaryText, format: .number), salary > 0 else { return nil }
@@ -59,7 +82,7 @@ struct SalarySetupView: View {
                 }
                 Picker("Payday", selection: Binding { draft.payday } set: { draft.setPayday(Double($0)) }) {
                     ForEach(Array(1...31).including(draft.payday), id: \.self) { day in
-                        Text("\(Self.ordinals.string(from: day as NSNumber) ?? "\(day)") of the month").tag(day)
+                        Text("\(Self.day(day)) of the month").tag(day)
                     }
                 }
             } header: {
@@ -116,17 +139,14 @@ struct SalarySetupView: View {
                 .controlSize(.large)
                 .keyboardShortcut(.defaultAction)
                 .disabled(salary == nil)
-            HStack(spacing: 0) {
-                Text("Everything else is in ")
-                    .foregroundStyle(.secondary)
-                Button("Settings") {
-                    analytics.track("settings_opened", ["source": .string(ActionSource.setupHint.rawValue)])
-                    openSettings()
-                }
-                .buttonStyle(.link)
-                Text(".")
+            Button {
+                analytics.track("settings_opened", ["source": .string(ActionSource.setupHint.rawValue)])
+                openSettings()
+            } label: {
+                Text(Self.settingsHint)
                     .foregroundStyle(.secondary)
             }
+            .buttonStyle(.plain)
             .font(.callout)
         }
         .frame(maxWidth: .infinity)

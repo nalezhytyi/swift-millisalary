@@ -26,7 +26,7 @@ struct DialScale: Equatable {
 
     init(_ period: Period, _ workday: WorkdayState, _ settings: MillisalaryCore.Settings, at now: Date, model: EarningsModel = EarningsModel()) {
         var calendar = model.calendar
-        calendar.locale = .english
+        calendar.locale = .app
         let window = workday.window
         var perTotal: Double?
         switch period {
@@ -73,7 +73,10 @@ struct DialScale: Equatable {
             perTotal = max(1, settings.workingDays)
         case .year:
             units = 12
-            labels = calendar.veryShortMonthSymbols
+            // "Jan", "січ": one letter repeats ("J" three times, "Л" for
+            // лютий, липень and листопад). Without Ukrainian's abbreviation
+            // dots, as on a calendar
+            labels = calendar.shortStandaloneMonthSymbols.map { $0.replacing(".", with: "") }
             current = calendar.component(.month, from: now) - 1
         }
         unitsPerTotal = perTotal ?? units
@@ -95,16 +98,6 @@ struct EarningsDial: View {
         total > 0 ? min(1, max(0, earned / total)) : 0
     }
 
-    private var caption: String {
-        switch period {
-        case .hour: "per hour"
-        case .day: "today"
-        case .week: "this week"
-        case .month: "this month"
-        case .year: "this year"
-        }
-    }
-
     var body: some View {
         GeometryReader { proxy in
             let side = min(proxy.size.width, proxy.size.height)
@@ -122,11 +115,8 @@ struct EarningsDial: View {
                     DialFace(side: side * 0.16)
                         .equatable()
                     amount(side: side)
-                    Text(verbatim: "of \(formatCurrency(total, currency: currency)) \(caption)")
-                        .font(.system(size: side * 0.038))
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: side * 0.62)
+                    DialTotal(total: formatCurrency(total, currency: currency), caption: period.dialCaption, side: side)
+                        .equatable()
                 }
             }
             .frame(width: side, height: side)
@@ -135,8 +125,7 @@ struct EarningsDial: View {
         .aspectRatio(1, contentMode: .fit)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(
-            "\(formatCurrency(earned, currency: currency)) earned \(caption), "
-                + "\(Int((progress * 100).rounded()))% of \(formatCurrency(total, currency: currency))"
+            "\(formatCurrency(earned, currency: currency)) earned \(period.dialCaption), \(Int((progress * 100).rounded()))% of \(formatCurrency(total, currency: currency))"
         )
     }
 
@@ -175,6 +164,22 @@ struct EarningsDial: View {
         .monospacedDigit()
         .lineLimit(1)
         .fixedSize()
+    }
+}
+
+/// "of 1 500,00 $ today" under the amount. Its own view, so the tick that
+/// changes only the amount doesn't resolve the text again
+private struct DialTotal: View, Equatable {
+    let total: String
+    let caption: String
+    let side: CGFloat
+
+    var body: some View {
+        Text("of \(total) \(caption)")
+            .font(.system(size: side * 0.038))
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: side * 0.62)
     }
 }
 

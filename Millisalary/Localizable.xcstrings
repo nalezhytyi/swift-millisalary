@@ -1,7 +1,1223 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-
+    "%@ %@" : {
+      "shouldTranslate" : false
+    },
+    "%@ %@%@" : {
+      "shouldTranslate" : false
+    },
+    "%@ a month over %@ working day, %@ to %@, Mon–Fri." : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ на місяць, робочих днів: %2$@, з %3$@ до %4$@, пн–пт."
+          }
+        }
+      }
+    },
+    "%@ a month over %@ working days, %@ to %@, Mon–Fri." : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ на місяць, робочих днів: %2$@, з %3$@ до %4$@, пн–пт."
+          }
+        }
+      }
+    },
+    "%@ earned %@, %lld%% of %@" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Зароблено %1$@ %2$@, %3$lld%% від %4$@"
+          }
+        }
+      }
+    },
+    "%@ left today, until %@" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сьогодні лишилось %1$@, до %2$@"
+          }
+        }
+      }
+    },
+    "%@ of the month" : {
+      "comment" : "The payday's day: an ordinal (\"10th\") in English, the bare number (\"10\") in every other language, which the translation inflects (SalarySetupView.day)",
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@-го числа"
+          }
+        }
+      }
+    },
+    "%@ progress" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@: прогрес"
+          }
+        }
+      }
+    },
+    "%lld h" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld год"
+          }
+        }
+      }
+    },
+    "%lld h %lld min" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld год %2$lld хв"
+          }
+        }
+      }
+    },
+    "%lld min" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld хв"
+          }
+        }
+      }
+    },
+    "Allow Millisalary under Login Items in System Settings." : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Дозвольте Millisalary в розділі «Елементи входу» в Системних налаштуваннях."
+          }
+        }
+      }
+    },
+    "Amount" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сума"
+          }
+        }
+      }
+    },
+    "Amounts are in %@ until the %@ to %@ exchange rate arrives." : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Суми показано в %1$@, доки не надійде курс %2$@ до %3$@."
+          }
+        }
+      }
+    },
+    "Appearance" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вигляд"
+          }
+        }
+      }
+    },
+    "At a Glance" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Показники"
+          }
+        }
+      }
+    },
+    "Breakdown" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Деталі"
+          }
+        }
+      }
+    },
+    "Check for Updates…" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Перевірити оновлення…"
+          }
+        }
+      }
+    },
+    "Check your internet connection and try again." : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Перевірте підключення до інтернету й спробуйте ще раз."
+          }
+        }
+      }
+    },
+    "Click to open the download page." : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Натисніть, щоб відкрити сторінку завантаження."
+          }
+        }
+      }
+    },
+    "Couldn't check for updates" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не вдалося перевірити оновлення"
+          }
+        }
+      }
+    },
+    "Dark" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Темний"
+          }
+        }
+      }
+    },
+    "Day %lld of 5, %@ left today" : {
+      "comment" : "This Week while earning: the weekday (Monday is 1) and the time left today",
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "День %1$lld з 5, сьогодні лишилось %2$@"
+          }
+        }
+      }
+    },
+    "Day of month" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "День місяця"
+          }
+        }
+      }
+    },
+    "Day of the month your salary arrives. In shorter months the last day is used." : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "День місяця, коли надходить зарплата. У коротших місяцях береться останній день."
+          }
+        }
+      }
+    },
+    "Day off." : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вихідний."
+          }
+        }
+      }
+    },
+    "Day off. Earning resumes %@ at %@" : {
+      "comment" : "The weekday (Monday…) and the time",
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вихідний. Наступний робочий день: %1$@, з %2$@"
+          }
+        }
+      }
+    },
+    "Day off. Earning resumes on %@ at %@" : {
+      "comment" : "The day and month (2 December) and the time",
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вихідний. Наступний робочий день: %1$@, з %2$@"
+          }
+        }
+      }
+    },
+    "Day off. Earning resumes tomorrow at %@" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вихідний. Наступний робочий день: завтра, з %@"
+          }
+        }
+      }
+    },
+    "Display currency" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Валюта відображення"
+          }
+        }
+      }
+    },
+    "Done for today." : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "На сьогодні все."
+          }
+        }
+      }
+    },
+    "Done for today. Earning resumes %@ at %@" : {
+      "comment" : "The weekday (Monday…) and the time",
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "На сьогодні все. Наступний робочий день: %1$@, з %2$@"
+          }
+        }
+      }
+    },
+    "Done for today. Earning resumes on %@ at %@" : {
+      "comment" : "The day and month (2 December) and the time",
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "На сьогодні все. Наступний робочий день: %1$@, з %2$@"
+          }
+        }
+      }
+    },
+    "Done for today. Earning resumes tomorrow at %@" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "На сьогодні все. Наступний робочий день: завтра, з %@"
+          }
+        }
+      }
+    },
+    "Earned so far" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вже зароблено"
+          }
+        }
+      }
+    },
+    "Earned today" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Зароблено сьогодні"
+          }
+        }
+      }
+    },
+    "Earning starts today at %@" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Заробіток почнеться сьогодні з %@"
+          }
+        }
+      }
+    },
+    "Earnings" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Заробіток"
+          }
+        }
+      }
+    },
+    "End of the workday" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Кінець робочого дня"
+          }
+        }
+      }
+    },
+    "End time" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Кінець"
+          }
+        }
+      }
+    },
+    "Everything else is in [Settings](millisalary-settings:)." : {
+      "comment" : "The part in the link is shown in the accent colour; the whole sentence is the button that opens Settings",
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Решта — у [налаштуваннях](millisalary-settings:)."
+          }
+        }
+      }
+    },
+    "Exchange rate" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Курс обміну"
+          }
+        }
+      }
+    },
+    "General" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Загальні"
+          }
+        }
+      }
+    },
+    "Hours per day follow the Start and End times: changing one updates the other." : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Години на день залежать від початку й кінця: зміна одного оновлює інше."
+          }
+        }
+      }
+    },
+    "In %lld days" : {
+      "localizations" : {
+        "en" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "In %lld day"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "In %lld days"
+                }
+              }
+            }
+          }
+        },
+        "uk" : {
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Через %lld день"
+                }
+              },
+              "few" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Через %lld дні"
+                }
+              },
+              "many" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Через %lld днів"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "Через %lld дня"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Later" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Пізніше"
+          }
+        }
+      }
+    },
+    "Left %@" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Лишилось %@"
+          }
+        }
+      }
+    },
+    "Left to earn" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Лишилось заробити"
+          }
+        }
+      }
+    },
+    "Light" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Світлий"
+          }
+        }
+      }
+    },
+    "Menu bar" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Рядок меню"
+          }
+        }
+      }
+    },
+    "Millisalary" : {
+      "shouldTranslate" : false
+    },
+    "Millisalary %@ is available" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Доступний Millisalary %@"
+          }
+        }
+      }
+    },
+    "Millisalary %@ is the latest version." : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Millisalary %@ — найновіша версія."
+          }
+        }
+      }
+    },
+    "Monthly salary" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Місячна зарплата"
+          }
+        }
+      }
+    },
+    "Move Down" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Перемістити вниз"
+          }
+        }
+      }
+    },
+    "Move Up" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Перемістити вгору"
+          }
+        }
+      }
+    },
+    "Next payday" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Наступна виплата"
+          }
+        }
+      }
+    },
+    "Nothing shows under the dial." : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Під кільцем нічого не показується."
+          }
+        }
+      }
+    },
+    "Notifications" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сповіщення"
+          }
+        }
+      }
+    },
+    "Notifications are turned off for Millisalary in System Settings." : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сповіщення для Millisalary вимкнено в Системних налаштуваннях."
+          }
+        }
+      }
+    },
+    "Open Download Page" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Відкрити сторінку завантаження"
+          }
+        }
+      }
+    },
+    "Open Login Items Settings…" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Відкрити налаштування елементів входу…"
+          }
+        }
+      }
+    },
+    "Open Millisalary" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Відкрити Millisalary"
+          }
+        }
+      }
+    },
+    "Open Notification Settings…" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Відкрити налаштування сповіщень…"
+          }
+        }
+      }
+    },
+    "Open at login" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Відкривати під час входу"
+          }
+        }
+      }
+    },
+    "Opens in the menu bar when your Mac starts, without showing the window." : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Відкривається в рядку меню під час запуску Mac, без показу вікна."
+          }
+        }
+      }
+    },
+    "Pay" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Оплата"
+          }
+        }
+      }
+    },
+    "Paycheck" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Виплата"
+          }
+        }
+      }
+    },
+    "Paycheck %@" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Виплата: %@"
+          }
+        }
+      }
+    },
+    "Payday" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "День виплати"
+          }
+        }
+      }
+    },
+    "Per 1 %@" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "За 1 %@"
+          }
+        }
+      }
+    },
+    "Per day" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "За день"
+          }
+        }
+      }
+    },
+    "Per hour" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "За годину"
+          }
+        }
+      }
+    },
+    "Per minute" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "За хвилину"
+          }
+        }
+      }
+    },
+    "Per second" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "За секунду"
+          }
+        }
+      }
+    },
+    "Quit Millisalary" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Завершити Millisalary"
+          }
+        }
+      }
+    },
+    "Salary" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Зарплата"
+          }
+        }
+      }
+    },
+    "Salary currency" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Валюта зарплати"
+          }
+        }
+      }
+    },
+    "Schedule" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Графік"
+          }
+        }
+      }
+    },
+    "See your salary grow, second by second" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Дивіться, як зарплата росте щосекунди"
+          }
+        }
+      }
+    },
+    "Selected period" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Обраний період"
+          }
+        }
+      }
+    },
+    "Sent while Millisalary is running, even with its window closed. Quitting the app stops them." : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Надсилаються, поки працює Millisalary, навіть із закритим вікном. Якщо вийти із застосунку, вони припиняються."
+          }
+        }
+      }
+    },
+    "Settings" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Налаштування"
+          }
+        }
+      }
+    },
+    "Settings…" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Налаштування…"
+          }
+        }
+      }
+    },
+    "Show amounts in" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Показувати суми в"
+          }
+        }
+      }
+    },
+    "Show in menu bar" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Показувати в рядку меню"
+          }
+        }
+      }
+    },
+    "Shows your earnings next to an icon in the macOS menu bar, even when the window is closed." : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Показує ваш заробіток поруч зі значком у рядку меню macOS, навіть коли вікно закрите."
+          }
+        }
+      }
+    },
+    "Start Earning" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Почати заробляти"
+          }
+        }
+      }
+    },
+    "Start time" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Початок"
+          }
+        }
+      }
+    },
+    "System" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Системний"
+          }
+        }
+      }
+    },
+    "System follows the macOS appearance." : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Системний вигляд слідує вигляду macOS."
+          }
+        }
+      }
+    },
+    "Tell Millisalary what you earn a month. It spreads the amount over your working hours and counts it up live, here and in the menu bar." : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вкажіть, скільки ви заробляєте на місяць. Millisalary розподілить суму на ваші робочі години й показуватиме, як вона росте, у вікні та в рядку меню."
+          }
+        }
+      }
+    },
+    "This Debug build doesn't register itself: only a Release build does." : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ця збірка Debug не реєструється сама: це робить лише збірка Release."
+          }
+        }
+      }
+    },
+    "This Hour" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ця година"
+          }
+        }
+      }
+    },
+    "This Month" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Цей місяць"
+          }
+        }
+      }
+    },
+    "This Week" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Цей тиждень"
+          }
+        }
+      }
+    },
+    "This Year" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Цей рік"
+          }
+        }
+      }
+    },
+    "Today" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сьогодні"
+          }
+        }
+      }
+    },
+    "Toggle Sidebar" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Перемкнути бічну панель"
+          }
+        }
+      }
+    },
+    "Tomorrow" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Завтра"
+          }
+        }
+      }
+    },
+    "Up to four show under the dial on every period, in this order. Drag a checked row to move it." : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "До чотирьох показуються під кільцем в усіх періодах у цьому порядку. Перетягніть позначений рядок, щоб перемістити."
+          }
+        }
+      }
+    },
+    "Working days / month" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Робочих днів на місяць"
+          }
+        }
+      }
+    },
+    "Working hours / day" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Робочих годин на день"
+          }
+        }
+      }
+    },
+    "Working hours, Mon–Fri" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Робочі години, пн–пт"
+          }
+        }
+      }
+    },
+    "You have %@." : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "У вас версія %@."
+          }
+        }
+      }
+    },
+    "You're up to date" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Оновлень немає"
+          }
+        }
+      }
+    },
+    "Your monthly salary is spread over your working days and hours. Earnings are shown in the display currency." : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Місячна зарплата розподіляється на ваші робочі дні й години. Заробіток показується у валюті відображення."
+          }
+        }
+      }
+    },
+    "Your rate" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ваша ставка"
+          }
+        }
+      }
+    },
+    "day left" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "до виплати"
+          }
+        }
+      }
+    },
+    "days left" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "до виплати"
+          }
+        }
+      }
+    },
+    "of %@" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "з %@"
+          }
+        }
+      }
+    },
+    "of %@ %@" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "з %1$@ %2$@"
+          }
+        }
+      }
+    },
+    "per hour" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "за годину"
+          }
+        }
+      }
+    },
+    "this hour" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "цієї години"
+          }
+        }
+      }
+    },
+    "this month" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "цього місяця"
+          }
+        }
+      }
+    },
+    "this week" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "цього тижня"
+          }
+        }
+      }
+    },
+    "this year" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "цього року"
+          }
+        }
+      }
+    },
+    "today" : {
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "сьогодні"
+          }
+        }
+      }
+    },
+    "· " : {
+      "shouldTranslate" : false
+    },
+    "–" : {
+      "shouldTranslate" : false
+    },
+    "—" : {
+      "shouldTranslate" : false
+    }
   },
   "version" : "1.0"
 }

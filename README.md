@@ -15,6 +15,8 @@ The app isn't signed with an Apple Developer ID yet, so macOS blocks it the firs
   xattr -d com.apple.quarantine /Applications/Millisalary.app
   ```
 
+The app is in English and Ukrainian. It follows the languages of your Mac; to run Millisalary in one of them on its own, choose it under System Settings → General → Language & Region → Applications.
+
 If you used the Electron version, the first launch takes over its settings (salary, schedule, currencies).
 
 "Open at login" may ask you to allow Millisalary under System Settings → General → Login Items.
@@ -32,6 +34,7 @@ xcodebuild -project Millisalary.xcodeproj -scheme Millisalary -derivedDataPath b
 swift test --package-path Packages/MillisalaryCore
 scripts/build-dmg.sh                    # the universal Release app in build/Millisalary-<version>.dmg
 swift scripts/generate-icons.swift      # regenerate the app and menu bar icons
+swift scripts/check-localizations.swift # every text in the string catalogs translated
 ```
 
 A Debug build is called Millisalary Dev and keeps its own settings, so it never touches an installed Millisalary. `CLAUDE.md` describes the code, the decisions behind it and how it's tested.

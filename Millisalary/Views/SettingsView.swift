@@ -268,7 +268,7 @@ struct SettingsView: View {
     /// A time picker with its label beside it, centred: in a Form sized to
     /// its content (`tab`) a DatePicker's own label rose to the top of a
     /// taller row, in LabeledContent too
-    private func timeRow(_ title: String, _ selection: Binding<Date>) -> some View {
+    private func timeRow(_ title: LocalizedStringKey, _ selection: Binding<Date>) -> some View {
         HStack {
             Text(title)
             Spacer()
@@ -392,7 +392,7 @@ struct SettingsView: View {
         }
     }
 
-    private func footer(_ text: String) -> some View {
+    private func footer(_ text: LocalizedStringKey) -> some View {
         Text(text).foregroundStyle(.secondary)
     }
 }

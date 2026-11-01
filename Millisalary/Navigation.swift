@@ -22,12 +22,12 @@ enum SidebarItem: Hashable {
     /// Also the window's title while the row is selected
     var title: String {
         switch self {
-        case .period(.hour): "This Hour"
-        case .period(.day): "Today"
-        case .period(.week): "This Week"
-        case .period(.month): "This Month"
-        case .period(.year): "This Year"
-        case .breakdown: "Breakdown"
+        case .period(.hour): String(localized: "This Hour")
+        case .period(.day): String(localized: "Today")
+        case .period(.week): String(localized: "This Week")
+        case .period(.month): String(localized: "This Month")
+        case .period(.year): String(localized: "This Year")
+        case .breakdown: String(localized: "Breakdown")
         }
     }
 

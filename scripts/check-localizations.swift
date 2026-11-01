@@ -34,14 +34,25 @@ func json(at path: String) -> [String: Any] {
     return object
 }
 
-/// The conversions of a format string's placeholders, sorted, so that
-/// positional ones (%1$@, %2$lld) may be reordered: "%@ of %lld" is
-/// ["@", "lld"]. "%%" is a percent sign, not a placeholder
-func placeholders(_ format: String) -> [String] {
-    let pattern = #/%(?:\d+\$)?[-+ 0#']*(?:\d+|\*)?(?:\.(?:\d+|\*))?(hh|h|ll|l|q|z|t|j|L)?([@dDiuUxXoOfFeEgGcCsSaAp%])/#
-    return format.matches(of: pattern).compactMap { match in
-        match.output.2 == "%" ? nil : String(match.output.1 ?? "") + String(match.output.2)
-    }.sorted()
+/// A format string's placeholders as "argument:conversion", sorted, so
+/// that positional ones may be reordered but not swapped for another
+/// argument: "%@ of %lld" and "%2$lld з %1$@" are both ["1:@", "2:lld"].
+/// "%%" is a percent sign, not a placeholder. `stray` is a "%" that starts
+/// none of them ("50 % off"), which Foundation would misread or drop
+func placeholders(_ format: String) -> (list: [String], stray: Bool) {
+    // No space among the flags: "% d" is far likelier a stray percent sign
+    let pattern = #/%(?:(\d+)\$)?[-+0#']*(?:\d+|\*)?(?:\.(?:\d+|\*))?(hh|h|ll|l|q|z|t|j|L)?([@dDiuUxXoOfFeEgGcCsSaAp%])/#
+    var list: [String] = []
+    var next = 1
+    var matched = 0
+    for match in format.matches(of: pattern) {
+        matched += match.output.0.filter { $0 == "%" }.count
+        guard match.output.3 != "%" else { continue }
+        let argument = match.output.1.flatMap { Int($0) } ?? next
+        next = argument + 1
+        list.append("\(argument):\(match.output.2 ?? "")\(match.output.3)")
+    }
+    return (list.sorted(), format.filter { $0 == "%" }.count != matched)
 }
 
 /// Every stringUnit under a localization, with where it is: the plain one,
@@ -87,19 +98,24 @@ for catalog in catalogs {
                 }
                 // A plural form may leave its number out ("one": "a day");
                 // a plain translation has exactly the key's placeholders
-                let expected = placeholders(key), found = placeholders(value)
+                let expected = placeholders(key).list, (found, stray) = placeholders(value)
                 let fits = path.isEmpty
                     ? found == expected
-                    : found.allSatisfy { conversion in found.filter { $0 == conversion }.count <= expected.filter { $0 == conversion }.count }
+                    : found.allSatisfy { placeholder in found.filter { $0 == placeholder }.count <= expected.filter { $0 == placeholder }.count }
                 if !fits {
                     problems.append("\(name)\(path): placeholders \(found) don't match the key's \(expected)")
+                }
+                if stray {
+                    problems.append("\(name)\(path): a \"%\" that isn't a placeholder: write a percent sign as %%")
                 }
             }
         }
     }
 
-    // The texts the code uses that the catalog doesn't have, from every
-    // configuration and architecture built there (Debug-only texts too)
+    // The texts the code uses that the catalog doesn't have. Each source
+    // file's newest extraction, whichever configuration and architecture
+    // built it last: an older build of another configuration still holds
+    // the texts the file had then
     guard let derivedData else { continue }
     let targetFolder = "\(derivedData)/Build/Intermediates.noindex/\(catalog.target)"
     let stringsdata = (FileManager.default.enumerator(atPath: targetFolder)?.compactMap { $0 as? String } ?? [])
@@ -108,10 +124,19 @@ for catalog in catalogs {
         problems.append("\(catalog.path): no extracted texts in \(targetFolder)")
         continue
     }
-    var used: [String: String] = [:]
+    var newest: [String: (data: [String: Any], date: Date)] = [:]
     for file in stringsdata {
-        let data = json(at: "\(targetFolder)/\(file)")
-        let source = (data["source"] as? String).map { URL(fileURLWithPath: $0).lastPathComponent } ?? file
+        let path = "\(targetFolder)/\(file)"
+        let data = json(at: path)
+        let date = (try? FileManager.default.attributesOfItem(atPath: path)[.modificationDate] as? Date) ?? .distantPast
+        let source = data["source"] as? String ?? file
+        if date > newest[source]?.date ?? .distantPast {
+            newest[source] = (data, date)
+        }
+    }
+    var used: [String: String] = [:]
+    for (sourcePath, (data, _)) in newest {
+        let source = URL(fileURLWithPath: sourcePath).lastPathComponent
         for (table, entries) in (data["tables"] as? [String: [[String: Any]]]) ?? [:] {
             for entry in entries {
                 guard let key = entry["key"] as? String else { continue }

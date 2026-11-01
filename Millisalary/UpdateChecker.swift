@@ -92,8 +92,8 @@ final class UpdateChecker {
             defaults.set(release.version.description, forKey: Self.notifiedKey)
             analytics.track("update_available_notified", ["version": .string(release.version.description)])
             notifications.announce(
-                title: "Millisalary \(release.version) is available",
-                body: "Click to open the download page.",
+                title: String(localized: "Millisalary \(release.version.description) is available"),
+                body: String(localized: "Click to open the download page."),
                 id: "update:\(release.version)",
                 opening: release.url
             )
@@ -121,17 +121,17 @@ final class UpdateChecker {
         let alert = NSAlert()
         switch result {
         case .available(let release):
-            alert.messageText = "Millisalary \(release.version) is available"
-            alert.informativeText = "You have \(Self.currentVersion)."
-            alert.addButton(withTitle: "Open Download Page")
-            alert.addButton(withTitle: "Later")
+            alert.messageText = String(localized: "Millisalary \(release.version.description) is available")
+            alert.informativeText = String(localized: "You have \(Self.currentVersion).")
+            alert.addButton(withTitle: String(localized: "Open Download Page"))
+            alert.addButton(withTitle: String(localized: "Later"))
         case .current:
-            alert.messageText = "You're up to date"
-            alert.informativeText = "Millisalary \(Self.currentVersion) is the latest version."
+            alert.messageText = String(localized: "You're up to date")
+            alert.informativeText = String(localized: "Millisalary \(Self.currentVersion) is the latest version.")
         case .failed:
             alert.alertStyle = .warning
-            alert.messageText = "Couldn't check for updates"
-            alert.informativeText = "Check your internet connection and try again."
+            alert.messageText = String(localized: "Couldn't check for updates")
+            alert.informativeText = String(localized: "Check your internet connection and try again.")
         }
 
         // From the menu bar item the app may well be in the background

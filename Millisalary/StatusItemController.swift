@@ -94,12 +94,12 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         if !rows.isEmpty {
             menu.addItem(.separator())
         }
-        menu.addItem(item("Open Millisalary", #selector(openWindow)))
-        menu.addItem(item("Settings…", #selector(showSettings)))
+        menu.addItem(item(String(localized: "Open Millisalary"), #selector(openWindow)))
+        menu.addItem(item(String(localized: "Settings…"), #selector(showSettings)))
         menu.addItem(.separator())
-        menu.addItem(item("Check for Updates…", #selector(checkUpdates)))
+        menu.addItem(item(String(localized: "Check for Updates…"), #selector(checkUpdates)))
         menu.addItem(NSMenuItem(
-            title: "Quit Millisalary",
+            title: String(localized: "Quit Millisalary"),
             action: #selector(NSApplication.terminate(_:)),
             keyEquivalent: "q"
         ))

@@ -58,7 +58,7 @@ struct BreakdownView: View {
     private func exchangeRateNote(_ pair: CurrencyPair, _ display: AmountDisplay) -> String? {
         guard !pair.isSameCurrency else { return nil }
         guard let rate = display.rate(for: pair) else {
-            return "Amounts are in \(pair.from) until the \(pair.from) to \(pair.to) exchange rate arrives."
+            return String(localized: "Amounts are in \(pair.from) until the \(pair.from) to \(pair.to) exchange rate arrives.")
         }
         return "1 \(pair.from) = \(rate) \(pair.to)"
     }
@@ -83,7 +83,7 @@ private struct PaydayCard: View, Equatable {
                 Text("Next payday")
                     .font(.callout)
                     .foregroundStyle(.secondary)
-                Text(date, format: .dateTime.weekday(.wide).month(.wide).day().locale(.english))
+                Text(date, format: .dateTime.weekday(.wide).month(.wide).day().locale(.app))
                     .font(.title2.weight(.semibold))
                 Text("Paycheck \(Text(verbatim: paycheck).fontWeight(.medium).foregroundStyle(.primary))")
                     .foregroundStyle(.secondary)
@@ -96,6 +96,9 @@ private struct PaydayCard: View, Equatable {
                         .font(.system(size: 40, weight: .semibold, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(Color.accentColor)
+                    // The number is the big figure above, so the text has no
+                    // plural of its own: English picks its own, a translation
+                    // may not need either
                     Text(daysLeft == 1 ? "day left" : "days left")
                         .font(.callout)
                         .foregroundStyle(.secondary)
@@ -132,7 +135,7 @@ private struct EarnedGrid: View, Equatable {
             bar = (progress * 1000).rounded(.down) / 1000
             earned = money(amount.earned)
             total = money(amount.total)
-            percent = progress.formatted(.percent.precision(.fractionLength(0)).locale(.english))
+            percent = progress.formatted(.percent.precision(.fractionLength(0)).locale(.app))
         }
     }
 
@@ -151,7 +154,7 @@ private struct EarnedGrid: View, Equatable {
                     VStack(alignment: .trailing, spacing: 1) {
                         Text(verbatim: row.earned)
                             .fontWeight(.semibold)
-                        Text(verbatim: "of \(row.total)")
+                        Text("of \(row.total)")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }
@@ -177,13 +180,16 @@ private struct ScheduleLine: View {
     var body: some View {
         let settings = store.settings
         let salary = formatCurrency(settings.monthlySalary, currency: settings.monthlySalaryCurrency)
-        let days = settings.workingDays.formatted(.number.precision(.fractionLength(0...2)))
+        let style = FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0...2))
+        let days = settings.workingDays.formatted(style)
         let window = EarningsModel().workingWindow(on: Clock.now, settings.workday)
-        let hours = Date.FormatStyle.dateTime.hour().minute()
-        Label(
-            "\(salary) a month over \(days) working \(settings.workingDays == 1 ? "day" : "days"), "
-                + "paid evenly from \(window.start.formatted(hours)) to \(window.end.formatted(hours)), Monday to Friday.",
-            systemImage: "calendar"
-        )
+        let from = window.start.formatted(.clock)
+        let to = window.end.formatted(.clock)
+        // English says "1 working day" for what shows as 1 (1.004 included)
+        // and "days" for the rest; a translation is the same for both
+        let sentence = days == 1.0.formatted(style)
+            ? String(localized: "\(salary) a month over \(days) working day, \(from) to \(to), Mon–Fri.")
+            : String(localized: "\(salary) a month over \(days) working days, \(from) to \(to), Mon–Fri.")
+        Label(sentence, systemImage: "calendar")
     }
 }

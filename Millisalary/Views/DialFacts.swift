@@ -5,15 +5,15 @@ extension DialFact {
     /// Its name in Settings' list
     var title: String {
         switch self {
-        case .perSecond: "Per second"
-        case .perMinute: "Per minute"
-        case .perHour: "Per hour"
-        case .perDay: "Per day"
-        case .nextPayday: "Next payday"
-        case .paycheck: "Paycheck"
-        case .leftToEarn: "Left to earn"
-        case .earnedToday: "Earned today"
-        case .exchangeRate: "Exchange rate"
+        case .perSecond: String(localized: "Per second")
+        case .perMinute: String(localized: "Per minute")
+        case .perHour: String(localized: "Per hour")
+        case .perDay: String(localized: "Per day")
+        case .nextPayday: String(localized: "Next payday")
+        case .paycheck: String(localized: "Paycheck")
+        case .leftToEarn: String(localized: "Left to earn")
+        case .earnedToday: String(localized: "Earned today")
+        case .exchangeRate: String(localized: "Exchange rate")
         }
     }
 }
@@ -36,23 +36,15 @@ struct DialFactFigures {
     }
 
     /// "today", "this week", …: what's left is the selected period's
-    var caption: String {
-        switch period {
-        case .hour: "this hour"
-        case .day: "today"
-        case .week: "this week"
-        case .month: "this month"
-        case .year: "this year"
-        }
-    }
+    var caption: String { period.caption }
 
     /// Under the figure in the card: the fact's name, the period's for what's
     /// left, and the rate's as "Per 1 USD" under "45,4 UAH", which fits a
     /// quarter of the card
     func label(_ fact: DialFact) -> String {
         switch fact {
-        case .leftToEarn: "Left \(caption)"
-        case .exchangeRate where rate != nil: "Per 1 \(pair.from)"
+        case .leftToEarn: String(localized: "Left \(caption)")
+        case .exchangeRate where rate != nil: String(localized: "Per 1 \(pair.from)")
         default: fact.title
         }
     }
@@ -61,7 +53,7 @@ struct DialFactFigures {
     func sample(_ fact: DialFact) -> Text {
         switch fact {
         case .leftToEarn: Text("\(value(fact)) \(caption)")
-        case .exchangeRate: Text(rate.map { "1 \(pair.from) = \($0) \(pair.to)" } ?? "—")
+        case .exchangeRate: Text(verbatim: rate.map { "1 \(pair.from) = \($0) \(pair.to)" } ?? "—")
         default: value(fact)
         }
     }
@@ -84,7 +76,7 @@ struct DialFactFigures {
         case .paycheck: return money(earnings.nextPayday.amount)
         case .leftToEarn: return money(max(0, earnings[period].total - earnings[period].earned))
         case .earnedToday: return money(earnings.day.earned)
-        case .exchangeRate: return Text(rate.map { "\($0) \(pair.to)" } ?? "—")
+        case .exchangeRate: return Text(verbatim: rate.map { "\($0) \(pair.to)" } ?? "—")
         }
     }
 
@@ -96,12 +88,12 @@ struct DialFactFigures {
     private func payday(withDate: Bool) -> Text {
         let next = earnings.nextPayday
         let when: String = switch next.daysLeft {
-        case 0: "Today"
-        case 1: "Tomorrow"
-        default: "In \(next.daysLeft) days"
+        case 0: String(localized: "Today")
+        case 1: String(localized: "Tomorrow")
+        default: String(localized: "In \(next.daysLeft) days")
         }
-        guard withDate, next.daysLeft > 0 else { return Text(when) }
-        let date = Text(next.date, format: .dateTime.weekday(.abbreviated).day().month(.abbreviated))
+        guard withDate, next.daysLeft > 0 else { return Text(verbatim: when) }
+        let date = Text(next.date, format: .dateTime.weekday(.abbreviated).day().month(.abbreviated).locale(.app))
             .font(.callout.weight(.regular))
             .foregroundStyle(.secondary)
         return Text("\(when) \(Text("· ").font(.callout).foregroundStyle(.secondary))\(date)")

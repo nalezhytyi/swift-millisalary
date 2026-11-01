@@ -44,6 +44,29 @@ extension Logger {
 }
 
 extension Locale {
-    /// What the app's English text formats its dates and numbers in
-    nonisolated static let english = Locale(identifier: "en_US")
+    /// The language the app runs in: one of its translations, which macOS
+    /// picks at launch from the preferred languages or System Settings'
+    /// choice for Millisalary
+    nonisolated static let appLanguage = Locale.LanguageCode(Bundle.main.preferredLocalizations.first ?? "en")
+
+    /// What the app's text formats its dates in (weekdays, months, the
+    /// time): the user's locale as it is now, its region and the overrides
+    /// in Language & Region (24-hour time, the first weekday) included, in
+    /// the app's language. `Locale.current` alone has the first preferred
+    /// language, which may not be one the app has: an English app on a Mac
+    /// set to German, English second, would name its days in German. Made
+    /// again on every use (about a microsecond), so a change of region or
+    /// clock while the app runs shows on the next tick
+    nonisolated static var app: Locale {
+        var components = Locale.Components(locale: .autoupdatingCurrent)
+        components.languageComponents.languageCode = appLanguage
+        return Locale(components: components)
+    }
+}
+
+extension FormatStyle where Self == Date.FormatStyle {
+    /// "17:00" or "5:00 PM", as the region writes it, in the app's language
+    nonisolated static var clock: Date.FormatStyle {
+        Date.FormatStyle.dateTime.hour().minute().locale(.app)
+    }
 }
