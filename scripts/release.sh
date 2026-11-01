@@ -26,8 +26,12 @@ if ! origin="$(git remote get-url origin 2>/dev/null)"; then
   echo "No 'origin' remote: create the GitHub repository ${repo} and push first." >&2
   exit 1
 fi
+# The whole URL, over HTTPS or SSH: a pattern with wildcards would also let
+# swift-millisalary-old or notgithub.com through
 case "$origin" in
-  *"github.com"[:/]"${repo}"*) ;;
+  "https://github.com/${repo}" | "https://github.com/${repo}.git" | \
+  "git@github.com:${repo}" | "git@github.com:${repo}.git" | \
+  "ssh://git@github.com/${repo}" | "ssh://git@github.com/${repo}.git") ;;
   *) echo "'origin' is ${origin}, not ${repo}." >&2; exit 1 ;;
 esac
 # More than one GitHub account may be signed in (gh auth status)
