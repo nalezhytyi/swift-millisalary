@@ -8,8 +8,10 @@ import os
 /// both ways (loginItem.ts in the Electron app): turning it on registers the
 /// app with `SMAppService.mainApp`, off removes it, and switching the app
 /// off in System Settings > General > Login Items turns the setting off at
-/// the next launch. Only a Release build registers itself: a Debug build
-/// would leave a login item pointing into DerivedData
+/// the next launch. A setting that is on without ever having been applied
+/// (imported from the Electron app, or written with `defaults write`)
+/// registers the app at launch instead. Only a Release build registers
+/// itself: a Debug build would leave a login item pointing into DerivedData
 @Observable
 final class LoginItemController {
     /// For Settings: `.requiresApproval` means the user still has to allow
@@ -20,6 +22,9 @@ final class LoginItemController {
     @ObservationIgnored private var applied: Bool?
 
     private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Millisalary", category: "login-item")
+    /// In the defaults: whether the item has been in place since the app
+    /// last removed it, so that its absence means the user removed it
+    private static let registeredKey = "loginItemRegistered"
 
     static var isManaged: Bool {
         #if DEBUG
@@ -35,10 +40,7 @@ final class LoginItemController {
 
     func start() {
         if Self.isManaged {
-            let registered = status == .enabled || status == .requiresApproval
-            if registered != store.settings.launchAtLogin {
-                store.update { $0.launchAtLogin = registered }
-            }
+            reconcile()
         }
         followSettings()
         NotificationCenter.default.addObserver(
@@ -48,11 +50,42 @@ final class LoginItemController {
         }
     }
 
+    /// At launch, before the setting is followed: an item in place turns
+    /// the setting on; a missing one turns it off when it had been in place
+    /// (the user removed it in System Settings), and is registered when it
+    /// never was
+    private func reconcile() {
+        if isRegistered {
+            itemWasRegistered = true
+            if !store.settings.launchAtLogin {
+                store.update { $0.launchAtLogin = true }
+            }
+        } else if !store.settings.launchAtLogin {
+            itemWasRegistered = false
+        } else if itemWasRegistered {
+            Self.log.info("The login item is gone: turning the setting off")
+            itemWasRegistered = false
+            store.update { $0.launchAtLogin = false }
+        } else {
+            Self.log.info("The setting is on but the login item was never registered: registering")
+            apply(true)
+        }
+    }
+
+    private var isRegistered: Bool {
+        status == .enabled || status == .requiresApproval
+    }
+
+    private var itemWasRegistered: Bool {
+        get { UserDefaults.standard.bool(forKey: Self.registeredKey) }
+        set { UserDefaults.standard.set(newValue, forKey: Self.registeredKey) }
+    }
+
     private func followSettings() {
         withObservationTracking {
             let enabled = store.settings.launchAtLogin
             if enabled != applied {
-                // The first pass only records the state the launch found
+                // The first pass only records the state the launch settled on
                 if applied != nil {
                     apply(enabled)
                 }
@@ -71,10 +104,14 @@ final class LoginItemController {
             } else {
                 try SMAppService.mainApp.unregister()
             }
+            itemWasRegistered = enabled
         } catch {
             Self.log.error("\(enabled ? "Register" : "Unregister", privacy: .public) failed: \(error.localizedDescription, privacy: .public)")
         }
         status = SMAppService.mainApp.status
+        if isRegistered {
+            itemWasRegistered = true
+        }
     }
 
     /// Whether the system started the app at login, so it should start in
