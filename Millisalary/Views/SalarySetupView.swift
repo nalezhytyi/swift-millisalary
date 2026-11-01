@@ -40,7 +40,9 @@ struct SalarySetupView: View {
                             .focused($salaryFocused)
                             .onSubmit(start)
                             .onChange(of: salaryText) { old, text in
-                                filterSalary(old, text)
+                                if let replacement = salaryFieldText(after: old, text) {
+                                    salaryText = replacement
+                                }
                             }
                         currencyPicker("Salary currency", selection: $draft.monthlySalaryCurrency)
                     }
@@ -89,7 +91,12 @@ struct SalarySetupView: View {
     private var header: some View {
         VStack(spacing: 0) {
             ZStack {
-                EmptyDial()
+                // The dial's ring before there's anything to fill it: a
+                // working day's eight hours as faint segments
+                DialSegments(units: 8, filled: 8, lineWidth: 8)
+                    .stroke(.quaternary, style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                    .padding(6)
+                    .accessibilityHidden(true)
                 MoneyFace()
                     .frame(width: 80, height: 80)
                     // Where the splash's face lands, as on the dial
@@ -154,16 +161,6 @@ struct SalarySetupView: View {
         }
     }
 
-    /// Only what a number can have, as in Settings (salaryInput)
-    private func filterSalary(_ old: String, _ text: String) {
-        if let input = salaryInput(text) {
-            if input != text { salaryText = input }
-        } else {
-            NSSound.beep()
-            salaryText = old
-        }
-    }
-
     /// Saves the draft; with a salary stored the pane turns into the dial
     private func start() {
         guard let salary else {
@@ -181,32 +178,5 @@ struct SalarySetupView: View {
             settings.payday = draft.payday
         }
         analytics.settingsChanged(from: before, to: store.settings)
-    }
-}
-
-/// The dial's ring before there's anything to fill it: a working day's
-/// eight hours as faint segments
-private struct EmptyDial: View {
-    private static let segments = 8
-    private static let lineWidth: CGFloat = 8
-
-    var body: some View {
-        GeometryReader { proxy in
-            let radius = min(proxy.size.width, proxy.size.height) / 2 - Self.lineWidth / 2 - 2
-            // A round cap reaches past the segment's end by half the line
-            // width, so the gap leaves room for both caps plus 4°
-            let cap = Double(Self.lineWidth / 2 / radius) / (2 * .pi)
-            let gap = 4.0 / 360 + 2 * cap
-            let each = 1.0 / Double(Self.segments)
-
-            ForEach(0..<Self.segments, id: \.self) { index in
-                Circle()
-                    .inset(by: Self.lineWidth / 2 + 2)
-                    .trim(from: Double(index) * each + gap / 2, to: Double(index + 1) * each - gap / 2)
-                    .stroke(.quaternary, style: StrokeStyle(lineWidth: Self.lineWidth, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
-            }
-        }
-        .accessibilityHidden(true)
     }
 }

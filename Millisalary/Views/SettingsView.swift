@@ -1,6 +1,13 @@
 import MillisalaryCore
 import ServiceManagement
 import SwiftUI
+import UniformTypeIdentifiers
+
+private extension UTType {
+    /// A fact row dragged within Settings' At a Glance (declared in
+    /// project.yml's Info.plist keys)
+    static let dialFact = UTType(exportedAs: "com.nalezhytyi.millisalary.dial-fact")
+}
 
 /// The settings, laid out like a System Settings pane. Every edit applies at
 /// once; the schedule's Start, End and hours a day keep each other in step
@@ -14,6 +21,10 @@ struct SettingsView: View {
     /// What the salary field shows, the stored salary between edits
     @State private var salaryText = ""
     @FocusState private var salaryFocused: Bool
+    /// The row a dragged fact would land before
+    @State private var dropTarget: DialFact?
+    /// The fact being dragged; the drag itself carries nothing to read
+    @State private var draggedFact: DialFact?
 
     static let currencies = ["UAH", "USD", "EUR", "PLN", "CZK", "RON"]
     private static let days = (1...31).map(Double.init)
@@ -149,6 +160,18 @@ struct SettingsView: View {
             }
 
             Section {
+                DialFactsPreview()
+                // The chosen facts first, in their order, then the rest
+                ForEach(settings.dialFacts + DialFact.allCases.filter { !settings.dialFacts.contains($0) }, id: \.self) { fact in
+                    dialFactRow(fact, chosen: settings.dialFacts)
+                }
+            } header: {
+                Text("At a Glance")
+            } footer: {
+                footer("Up to four show under the dial on every period, in this order. Drag a checked row to move it.")
+            }
+
+            Section {
                 Picker("Appearance", selection: binding(\.theme)) {
                     Text("System").tag(Theme.system)
                     Text("Light").tag(Theme.light)
@@ -185,11 +208,8 @@ struct SettingsView: View {
     private func filterSalary(_ old: String, _ text: String) {
         // The stored salary, shown again after a commit
         guard text != store.settings.monthlySalary.formatted(.number) else { return }
-        if let input = salaryInput(text) {
-            if input != text { salaryText = input }
-        } else {
-            NSSound.beep()
-            salaryText = old
+        if let replacement = salaryFieldText(after: old, text) {
+            salaryText = replacement
         }
     }
 
@@ -227,6 +247,113 @@ struct SettingsView: View {
         }
     }
 
+    // MARK: - At a Glance
+
+    /// A fact's checkbox and what it says now; a checked one can be dragged,
+    /// and dropping one on a row puts it before that row (on an unchecked
+    /// one, after the checked). A drag and drop rather than `onMove`, which
+    /// a grouped Form doesn't promise to offer, as the app's own `dialFact`
+    /// type, visible to this process only; Move Up and Move Down in the
+    /// context menu and as accessibility actions do the same without a drag
+    @ViewBuilder
+    private func dialFactRow(_ fact: DialFact, chosen: [DialFact]) -> some View {
+        let isOn = chosen.contains(fact)
+        let position = chosen.firstIndex(of: fact)
+        let row = HStack(spacing: 8) {
+            Toggle(fact.title, isOn: Binding {
+                isOn
+            } set: { on in
+                update { $0.dialFacts = on ? $0.dialFacts + [fact] : $0.dialFacts.filter { $0 != fact } }
+            })
+            .toggleStyle(.checkbox)
+            .disabled(!isOn && chosen.count >= DialFact.maximum)
+            Spacer()
+            DialFactSample(fact: fact)
+            Image(systemName: "line.3.horizontal")
+                .foregroundStyle(.tertiary)
+                .opacity(isOn ? 1 : 0)
+                .accessibilityHidden(true)
+        }
+        .contentShape(Rectangle())
+        .overlay(alignment: .top) {
+            if dropTarget == fact {
+                Capsule()
+                    .fill(Color.accentColor)
+                    .frame(height: 2)
+                    .offset(y: -5)
+            }
+        }
+        .onDrop(of: [.dialFact], isTargeted: Binding {
+            dropTarget == fact
+        } set: { targeted in
+            if targeted {
+                dropTarget = fact
+            } else if dropTarget == fact {
+                dropTarget = nil
+            }
+        }) { _ in
+            guard let draggedFact else { return false }
+            moveFact(draggedFact, before: fact)
+            return true
+        }
+        .contextMenu {
+            if let position {
+                Button("Move Up") { shiftFact(fact, by: -1) }
+                    .disabled(position == 0)
+                Button("Move Down") { shiftFact(fact, by: 1) }
+                    .disabled(position == chosen.count - 1)
+            }
+        }
+        .accessibilityActions {
+            if let position {
+                if position > 0 {
+                    Button("Move Up") { shiftFact(fact, by: -1) }
+                }
+                if position < chosen.count - 1 {
+                    Button("Move Down") { shiftFact(fact, by: 1) }
+                }
+            }
+        }
+
+        if isOn {
+            row.onDrag {
+                draggedFact = fact
+                let provider = NSItemProvider()
+                provider.registerDataRepresentation(forTypeIdentifier: UTType.dialFact.identifier, visibility: .ownProcess) { load in
+                    load(Data(), nil)
+                    return nil
+                }
+                return provider
+            }
+        } else {
+            row
+        }
+    }
+
+    private func shiftFact(_ fact: DialFact, by offset: Int) {
+        update { settings in
+            guard let index = settings.dialFacts.firstIndex(of: fact),
+                  settings.dialFacts.indices.contains(index + offset)
+            else { return }
+            settings.dialFacts.swapAt(index, index + offset)
+        }
+    }
+
+    private func moveFact(_ moved: DialFact, before target: DialFact) {
+        dropTarget = nil
+        draggedFact = nil
+        guard moved != target, store.settings.dialFacts.contains(moved) else { return }
+        update { settings in
+            var facts = settings.dialFacts.filter { $0 != moved }
+            if let index = facts.firstIndex(of: target) {
+                facts.insert(moved, at: index)
+            } else {
+                facts.append(moved)
+            }
+            settings.dialFacts = facts
+        }
+    }
+
     // MARK: - Pieces
 
     /// The choices plus the current value when it isn't one of them (hours a
@@ -243,5 +370,61 @@ struct SettingsView: View {
 
     private func footer(_ text: String) -> some View {
         Text(text).foregroundStyle(.secondary)
+    }
+}
+
+/// The card under the dial as the chosen facts make it
+private struct DialFactsPreview: View {
+    @Environment(SettingsStore.self) private var store
+
+    var body: some View {
+        let facts = store.settings.dialFacts
+        if facts.isEmpty {
+            Text("Nothing shows under the dial.")
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+        } else {
+            SettingsFigures { figures in
+                DialFactCells(facts: facts, figures: figures)
+            }
+        }
+    }
+}
+
+/// What a fact says, beside its checkbox
+private struct DialFactSample: View {
+    let fact: DialFact
+
+    var body: some View {
+        SettingsFigures { figures in
+            figures.sample(fact)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .monospacedDigit()
+                .lineLimit(1)
+        }
+    }
+}
+
+/// The figures for Settings' At a Glance, worked out when the pane shows,
+/// when the settings or the rate change, and once a minute, so what changes
+/// over the day (earned today, the days to payday) doesn't go stale. Not on
+/// the window's 100 ms ticks: every row worked the earnings out ten times a
+/// second, which took Settings from 1.5% of a core to 17%, and once a second
+/// for the changing ones still cost 2 to 3% (Debug build, 2026-11-01).
+/// Settings shows what a fact is; the dial is where it ticks
+private struct SettingsFigures<Content: View>: View {
+    @ViewBuilder let content: (DialFactFigures) -> Content
+
+    @Environment(SettingsStore.self) private var store
+    @Environment(ExchangeRateStore.self) private var rates
+
+    var body: some View {
+        TimelineView(.everyMinute) { _ in
+            let settings = store.settings
+            let display = settings.amountDisplay(rates)
+            content(DialFactFigures(settings, display, settings.earnings(at: Clock.now, display)))
+        }
     }
 }

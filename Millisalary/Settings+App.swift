@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 import MillisalaryCore
 
 /// How amounts are shown: converted to the display currency once the rate
@@ -8,6 +8,26 @@ import MillisalaryCore
 struct AmountDisplay: Equatable {
     let currency: String
     let exchangeRate: Double
+
+    /// The rate in use for `pair` as shown ("45,4"): nil with one currency,
+    /// or while the amounts wait in the salary's currency for it
+    func rate(for pair: CurrencyPair) -> String? {
+        guard !pair.isSameCurrency, currency == pair.to else { return nil }
+        return exchangeRate.formatted(.number.precision(.fractionLength(0...4)))
+    }
+}
+
+/// What a salary field keeps of an edit: only what a number can have, as a
+/// number field's formatter does. An edit that adds anything else (a minus,
+/// a letter) is undone with a beep, and "." or "," becomes the locale's
+/// decimal separator (salaryInput). Returns the text the field should show
+/// instead, or nil to keep the edit
+func salaryFieldText(after old: String, _ text: String) -> String? {
+    if let input = salaryInput(text) {
+        return input == text ? nil : input
+    }
+    NSSound.beep()
+    return old
 }
 
 extension Settings {

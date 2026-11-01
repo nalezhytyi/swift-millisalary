@@ -37,24 +37,28 @@ struct EarningsView: View {
                         .frame(minWidth: 176, maxWidth: 384)
                         Text(workday.status(for: period, at: now))
                             .foregroundStyle(.secondary)
-                            .lineLimit(1)
+                            .multilineTextAlignment(.center)
+                            .lineLimit(2)
                     }
                     .padding(.vertical, 16)
                     .frame(maxHeight: .infinity)
 
-                    FactsRow(earnings: earnings, currency: display.currency)
+                    if !settings.dialFacts.isEmpty {
+                        FactsRow(facts: settings.dialFacts, figures: DialFactFigures(settings, display, earnings))
+                    }
                 }
                 .padding(.horizontal, 20)
                 // The facts' Form adds its own 20 pt around the card
                 .padding(.bottom, 4)
                 .frame(maxWidth: 600)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                // Nothing scrolls under the toolbar here, so it has no bar;
+                // the setup form does scroll, and keeps it
+                .toolbarBackground(.hidden, for: .windowToolbar)
             } else {
                 SalarySetupView()
             }
         }
-        // Nothing scrolls under the toolbar here, so it has no bar
-        .toolbarBackground(.hidden, for: .windowToolbar)
     }
 }
 
@@ -68,6 +72,11 @@ struct WorkdayState {
     let next: (start: Date, days: Int)?
 
     private static let english = Locale(identifier: "en_US")
+    private struct NextKey: Equatable {
+        let today: Date
+        let workday: WorkdaySettings
+    }
+    private static let nextMemo = DayMemo<NextKey, (start: Date, days: Int)?>()
 
     init(_ settings: MillisalaryCore.Settings, at now: Date) {
         let model = EarningsModel()
@@ -77,11 +86,13 @@ struct WorkdayState {
         isEarning = isScheduled && window.start <= now && now < window.end
 
         let today = model.calendar.startOfDay(for: now)
-        next = (1...31).lazy.compactMap { days -> (start: Date, days: Int)? in
-            let day = model.calendar.date(byAdding: .day, value: days, to: today)!
-            guard model.isScheduledDay(day, workingDays: settings.workingDays) else { return nil }
-            return (model.workingWindow(on: day, workday).start, days)
-        }.first
+        next = Self.nextMemo.value(for: NextKey(today: today, workday: workday)) {
+            (1...31).lazy.compactMap { days -> (start: Date, days: Int)? in
+                let day = model.calendar.date(byAdding: .day, value: days, to: today)!
+                guard model.isScheduledDay(day, workingDays: workday.workingDays) else { return nil }
+                return (model.workingWindow(on: day, workday).start, days)
+            }.first
+        }
     }
 
     /// "3 h 30 min left today, until 17:00", or when earning starts again
@@ -119,6 +130,26 @@ struct WorkdayState {
     }
 }
 
+/// One value kept until its key changes: what the Earnings pane works out
+/// once a day (the next paid day, the month's paid days, each a loop of
+/// calendar arithmetic) rather than on every 100 ms tick. The keys hold the
+/// day or month as the model's calendar starts it, so a change of time zone
+/// makes a new one
+final class DayMemo<Key: Equatable, Value> {
+    private var key: Key?
+    private var value: Value?
+
+    func value(for key: Key, _ make: () -> Value) -> Value {
+        if let value, self.key == key {
+            return value
+        }
+        let made = make()
+        self.key = key
+        value = made
+        return made
+    }
+}
+
 /// How the dial's ring is cut: one segment per unit of the period (the
 /// working day's hours, the paid weekdays, the months), a label for each,
 /// and the one under way, which is shown brighter
@@ -126,30 +157,54 @@ struct DialScale {
     var units: Double
     /// How many units the period's total is worth: the fill is the progress
     /// times this. The units, except for a month with fewer paid days than
-    /// the working days its salary is split over
+    /// the working days its salary is split over, and a day, whose clock
+    /// hours can take in part of an hour before the start or after the end
     var unitsPerTotal: Double
+    /// Where the fill begins, in units: the minutes of a clock hour before a
+    /// workday that starts at 09:30, on This Hour's five-minute segments and
+    /// on Today's hours
+    var fillStart = 0.0
     var labels: [String]
     var current: Int?
+
+    private struct PaidDaysKey: Equatable {
+        let month: Date
+        let workingDays: Double
+    }
+    private static let paidDaysMemo = DayMemo<PaidDaysKey, [Date]>()
 
     init(_ period: Period, _ workday: WorkdayState, _ settings: MillisalaryCore.Settings, at now: Date) {
         let model = EarningsModel()
         var calendar = model.calendar
         calendar.locale = Locale(identifier: "en_US")
+        let window = workday.window
+        var perTotal: Double?
         switch period {
         case .hour:
+            // The clock's minutes; the hour's pay starts when the workday
+            // does, if that's within it
+            let hour = calendar.dateInterval(of: .hour, for: now)!.start
             units = 12
-            labels = stride(from: 0, to: 60, by: 5).map { String(format: "%02d", $0) }
+            fillStart = min(12, max(0, window.start.timeIntervalSince(hour) / 300))
+            labels = stride(from: 0, to: 60, by: 5).map { String(format: "%02ld", $0) }
             current = workday.isEarning ? calendar.component(.minute, from: now) / 5 : nil
         case .day:
-            units = max(1, workday.window.end.timeIntervalSince(workday.window.start) / 3600)
-            let first = calendar.component(.hour, from: workday.window.start)
-            labels = (0..<Int(units.rounded(.up))).map { String((first + $0) % 24) }
-            current = workday.isEarning ? Int(now.timeIntervalSince(workday.window.start) / 3600) : nil
+            // Clock hours, from the one the workday starts in to the one it
+            // ends in: a 09:30 start fills "9" from its middle
+            let firstHour = calendar.dateInterval(of: .hour, for: window.start)!.start
+            let hours = max(1.0 / 60, window.end.timeIntervalSince(window.start) / 3600)
+            fillStart = window.start.timeIntervalSince(firstHour) / 3600
+            units = max(1, (fillStart + hours).rounded(.up))
+            let first = calendar.component(.hour, from: firstHour)
+            labels = (0..<Int(units)).map { String((first + $0) % 24) }
+            current = workday.isEarning ? Int(now.timeIntervalSince(firstHour) / 3600) : nil
+            perTotal = hours
         case .week:
             units = 5
             labels = Array(calendar.shortWeekdaySymbols[1...5])
+            // Only a paid weekday: one past the working days a month isn't
             let weekday = (calendar.component(.weekday, from: now) + 5) % 7
-            current = weekday < 5 ? weekday : nil
+            current = weekday < 5 && workday.isScheduled ? weekday : nil
         case .month:
             // The month's paid days, dated: its weekdays until the working
             // days a month run out (the model's isScheduledDay). With fewer
@@ -157,18 +212,21 @@ struct DialScale {
             // so the last segments' worth is never reached and the ring
             // fills by days
             let start = calendar.dateInterval(of: .month, for: now)!.start
-            let paid = calendar.range(of: .day, in: .month, for: now)!
-                .map { calendar.date(byAdding: .day, value: $0 - 1, to: start)! }
-                .filter { model.isScheduledDay($0, workingDays: settings.workingDays) }
+            let paid = Self.paidDaysMemo.value(for: PaidDaysKey(month: start, workingDays: settings.workingDays)) {
+                calendar.range(of: .day, in: .month, for: now)!
+                    .map { calendar.date(byAdding: .day, value: $0 - 1, to: start)! }
+                    .filter { model.isScheduledDay($0, workingDays: settings.workingDays) }
+            }
             units = max(1, min(Double(paid.count), settings.workingDays))
             labels = paid.prefix(Int(units.rounded(.up))).map { String(calendar.component(.day, from: $0)) }
             current = paid.firstIndex { calendar.isDate($0, inSameDayAs: now) }
+            perTotal = max(1, settings.workingDays)
         case .year:
             units = 12
             labels = calendar.veryShortMonthSymbols
             current = calendar.component(.month, from: now) - 1
         }
-        unitsPerTotal = period == .month ? max(1, settings.workingDays) : units
+        unitsPerTotal = perTotal ?? units
     }
 }
 
@@ -214,7 +272,12 @@ struct EarningsDial: View {
                 DialSegments(units: scale.units, filled: scale.units, lineWidth: stroke)
                     .stroke(.quaternary, style: StrokeStyle(lineWidth: stroke, lineCap: .round))
                     .frame(width: radius * 2, height: radius * 2)
-                DialSegments(units: scale.units, filled: shownProgress * scale.unitsPerTotal, lineWidth: stroke)
+                DialSegments(
+                    units: scale.units,
+                    from: scale.fillStart,
+                    filled: scale.fillStart + shownProgress * scale.unitsPerTotal,
+                    lineWidth: stroke
+                )
                     .stroke(Color.accentColor, style: StrokeStyle(lineWidth: stroke, lineCap: .round))
                     .frame(width: radius * 2, height: radius * 2)
 
@@ -297,11 +360,13 @@ struct EarningsDial: View {
 }
 
 /// The dial's ring cut into the period's units, from the top clockwise and
-/// filled up to `filled` units (the last unit can be a part of one). Round
-/// caps reach past an arc's ends, so each gap leaves room for two of them
-/// besides the 3° that show. Off the main actor, as `Shape` needs
-nonisolated private struct DialSegments: Shape {
+/// filled from `from` to `filled` units (the last unit can be a part of
+/// one). Round caps reach past an arc's ends, so each gap leaves room for
+/// two of them besides the 3° that show, and a fill's ends are pulled in by
+/// a cap. Off the main actor, as `Shape` needs
+nonisolated struct DialSegments: Shape {
     var units: Double
+    var from = 0.0
     var filled: Double
     var lineWidth: CGFloat
 
@@ -316,71 +381,49 @@ nonisolated private struct DialSegments: Shape {
         let cap = Double(lineWidth / 2 / radius) * 180 / .pi
         let gap = 3 + 2 * cap
         let degreesPerUnit = 360 / units
+        let fillFrom = from * degreesPerUnit
+        let fillTo = filled * degreesPerUnit
 
         var path = Path()
         for index in 0..<Int(units.rounded(.up)) {
             let unit = Double(index)
-            guard filled > unit else { break }
-            let start = unit * degreesPerUnit + gap / 2
-            let end = (unit + min(1, units - unit)) * degreesPerUnit - gap / 2
+            let segmentStart = unit * degreesPerUnit
+            let segmentEnd = (unit + min(1, units - unit)) * degreesPerUnit
+            guard fillTo > segmentStart else { break }
+            guard fillFrom < segmentEnd else { continue }
+            let start = segmentStart + gap / 2
+            let end = segmentEnd - gap / 2
             guard end > start else { continue }
-            let reached = (unit + min(1, filled - unit)) * degreesPerUnit - cap
-            let stop = min(end, max(start, reached))
-            let radians = (start - 90) * .pi / 180
+            let lower = min(end, max(start, fillFrom + cap))
+            let upper = min(end, max(lower, fillTo - cap))
+            let radians = (lower - 90) * .pi / 180
             path.move(to: CGPoint(x: center.x + radius * cos(radians), y: center.y + radius * sin(radians)))
-            path.addArc(center: center, radius: radius, startAngle: .degrees(start - 90), endAngle: .degrees(stop - 90), clockwise: false)
+            path.addArc(center: center, radius: radius, startAngle: .degrees(lower - 90), endAngle: .degrees(upper - 90), clockwise: false)
         }
         return path
     }
 }
 
-/// Three facts in a row under the dial, the same for every period: the rate
-/// a second and an hour, and the next payday
+/// The facts chosen in Settings, in a row under the dial, the same for
+/// every period
 private struct FactsRow: View {
-    let earnings: EarningsSnapshot
-    let currency: String
+    let facts: [DialFact]
+    let figures: DialFactFigures
 
     var body: some View {
-        let rates = earnings.rates
-        let facts: [(String, Text)] = [
-            ("Per second", Text(formatCurrency(rates.perSecond, currency: currency, fractionDigits: 4))),
-            ("Per hour", Text(formatCurrency(rates.perHour, currency: currency))),
-            ("Next payday", payday),
-        ]
-
         // A grouped Form's card, as Breakdown's rates are in; the Form is as
-        // tall as its card and draws no background of its own here
+        // tall as its card and draws no background of its own here. Its
+        // 20 pt margin stays: contentMargins (any placement) and
+        // listRowInsets don't change it on macOS 27 (measured on captures,
+        // 2026-11-01), so the pane allows for it
         Form {
             Section {
-                HStack(spacing: 12) {
-                    ForEach(Array(facts.enumerated()), id: \.offset) { index, fact in
-                        if index > 0 {
-                            Divider()
-                        }
-                        FigureCell(value: fact.1, label: fact.0)
-                    }
-                }
-                .padding(.vertical, 4)
+                DialFactCells(facts: facts, figures: figures)
             }
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)
         .scrollDisabled(true)
         .fixedSize(horizontal: false, vertical: true)
-    }
-
-    /// "In 6 days · Tue, 10 Nov", "Tomorrow · …" or "Today"
-    private var payday: Text {
-        let next = earnings.nextPayday
-        let when: String = switch next.daysLeft {
-        case 0: "Today"
-        case 1: "Tomorrow"
-        default: "In \(next.daysLeft) days"
-        }
-        guard next.daysLeft > 0 else { return Text(when) }
-        let date = Text(next.date, format: .dateTime.weekday(.abbreviated).day().month(.abbreviated))
-            .font(.callout.weight(.regular))
-            .foregroundStyle(.secondary)
-        return Text("\(when) \(Text("· ").font(.callout).foregroundStyle(.secondary))\(date)")
     }
 }

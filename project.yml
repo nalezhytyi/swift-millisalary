@@ -51,6 +51,12 @@ targets:
         NSHumanReadableCopyright: © 2026 nalezhytyi
         # Where the update check and scripts/release.sh look for releases
         MillisalaryReleasesRepo: nalezhytyi/swift-millisalary
+        # What a fact row is dragged as in Settings' At a Glance, so it
+        # takes no text from other apps and gives them none
+        UTExportedTypeDeclarations:
+          - UTTypeIdentifier: com.nalezhytyi.millisalary.dial-fact
+            UTTypeDescription: Millisalary dial fact
+            UTTypeConformsTo: [public.data]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.nalezhytyi.millisalary

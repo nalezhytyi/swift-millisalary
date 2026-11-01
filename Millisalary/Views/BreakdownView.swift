@@ -72,7 +72,7 @@ struct BreakdownView: View {
                 Text("Your rate")
             } footer: {
                 VStack(alignment: .leading, spacing: 6) {
-                    Label(schedule(settings), systemImage: "calendar")
+                    ScheduleLine()
                     if let exchange = exchangeRateNote(settings.ratePair, display) {
                         Label(exchange, systemImage: "arrow.left.arrow.right")
                     }
@@ -130,23 +130,33 @@ struct BreakdownView: View {
 
     /// What the rate is worked out from: the salary, the paid days and today's
     /// working hours
-    private func schedule(_ settings: MillisalaryCore.Settings) -> String {
-        let salary = formatCurrency(settings.monthlySalary, currency: settings.monthlySalaryCurrency)
-        let days = settings.workingDays.formatted(.number.precision(.fractionLength(0...2)))
-        let window = EarningsModel().workingWindow(on: ticker.now, settings.workday)
-        let hours = Date.FormatStyle.dateTime.hour().minute()
-        return "\(salary) a month over \(days) working \(settings.workingDays == 1 ? "day" : "days"), "
-            + "paid evenly from \(window.start.formatted(hours)) to \(window.end.formatted(hours)), Monday to Friday."
-    }
-
     /// The rate in use when the currencies differ, or why there's none yet
     private func exchangeRateNote(_ pair: CurrencyPair, _ display: AmountDisplay) -> String? {
         guard !pair.isSameCurrency else { return nil }
-        guard display.currency == pair.to else {
+        guard let rate = display.rate(for: pair) else {
             return "Amounts are in \(pair.from) until the \(pair.from) to \(pair.to) exchange rate arrives."
         }
-        let rate = display.exchangeRate.formatted(.number.precision(.fractionLength(0...4)))
         return "1 \(pair.from) = \(rate) \(pair.to)"
+    }
+}
+
+/// What the rate is worked out from: the salary, the paid days and today's
+/// working hours. Its own view, off the ticks: it only changes with the
+/// settings
+private struct ScheduleLine: View {
+    @Environment(SettingsStore.self) private var store
+
+    var body: some View {
+        let settings = store.settings
+        let salary = formatCurrency(settings.monthlySalary, currency: settings.monthlySalaryCurrency)
+        let days = settings.workingDays.formatted(.number.precision(.fractionLength(0...2)))
+        let window = EarningsModel().workingWindow(on: Clock.now, settings.workday)
+        let hours = Date.FormatStyle.dateTime.hour().minute()
+        Label(
+            "\(salary) a month over \(days) working \(settings.workingDays == 1 ? "day" : "days"), "
+                + "paid evenly from \(window.start.formatted(hours)) to \(window.end.formatted(hours)), Monday to Friday.",
+            systemImage: "calendar"
+        )
     }
 }
 

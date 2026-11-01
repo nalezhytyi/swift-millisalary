@@ -73,6 +73,12 @@ extension AnalyticsEvent {
         if after.theme != before.theme {
             events.append(AnalyticsEvent("theme_changed", ["theme": .string(after.theme.rawValue)]))
         }
+        // This app's own: the Electron app had no choice of facts
+        if after.dialFacts != before.dialFacts {
+            events.append(AnalyticsEvent("dial_facts_changed", [
+                "facts": .string(after.dialFacts.map(\.rawValue).joined(separator: ",")),
+            ]))
+        }
 
         return events
     }

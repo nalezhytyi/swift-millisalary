@@ -19,7 +19,17 @@ private func customised() -> Settings {
     settings.launchAtLogin = true
     settings.notifyEndOfDay = false
     settings.notifyPayday = false
+    settings.dialFacts = [.nextPayday, .exchangeRate]
     return settings
+}
+
+@Test func dialFactsAreCleanedUp() {
+    let known = Settings(sanitizing: [
+        "dialFacts": ["perHour", "perHour", "fromALaterVersion", 3, "perDay", "paycheck", "earnedToday", "perSecond"],
+    ])
+    #expect(known.dialFacts == [.perHour, .perDay, .paycheck, .earnedToday])
+    #expect(Settings(sanitizing: ["dialFacts": [String]()]).dialFacts.isEmpty)
+    #expect(Settings(sanitizing: ["dialFacts": "perHour"]).dialFacts == DialFact.defaults)
 }
 
 @Test func propertyListRoundTrips() {

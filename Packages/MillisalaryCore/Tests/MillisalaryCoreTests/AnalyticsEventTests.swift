@@ -11,6 +11,12 @@ private func changes(_ edit: (inout Settings) -> Void) -> [AnalyticsEvent] {
     #expect(changes { _ in }.isEmpty)
 }
 
+@Test func dialFactsAreReportedInOrder() {
+    #expect(changes { $0.dialFacts = [.nextPayday, .perDay] } == [
+        AnalyticsEvent("dial_facts_changed", ["facts": .string("nextPayday,perDay")]),
+    ])
+}
+
 @Test func theSalaryIsReportedWithItsAmount() {
     #expect(changes { $0.monthlySalary = 54321 } == [
         AnalyticsEvent("salary_input_blurred", ["salary_value": .number(54321), "has_salary_value": .bool(true)]),

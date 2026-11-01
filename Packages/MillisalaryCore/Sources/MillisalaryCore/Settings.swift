@@ -8,9 +8,19 @@ public enum MenuBarAmount: String, CaseIterable, Sendable {
     case day, selected
 }
 
+/// What the card under the Earnings dial can show, in the order Settings
+/// lists them
+public enum DialFact: String, CaseIterable, Sendable {
+    case perSecond, perMinute, perHour, perDay, nextPayday, paycheck, leftToEarn, earnedToday, exchangeRate
+
+    /// The card fits four
+    public static let maximum = 4
+    public static let defaults: [DialFact] = [.perSecond, .perHour, .perDay]
+}
+
 /// The app's settings: the keys, values and defaults of the Electron app's
-/// settings.json (settings.ts). Start and end times are "HH:mm" strings, or
-/// "" when cleared
+/// settings.json (settings.ts), plus `dialFacts`, which only this app has.
+/// Start and end times are "HH:mm" strings, or "" when cleared
 public struct Settings: Equatable, Sendable {
     public var monthlySalary: Double = 0
     public var monthlySalaryCurrency = "USD"
@@ -32,6 +42,9 @@ public struct Settings: Equatable, Sendable {
     public var notifyEndOfDay = true
     /// A notification on payday
     public var notifyPayday = true
+    /// The facts in the card under the Earnings dial, in order, at most
+    /// `DialFact.maximum`; none hides the card
+    public var dialFacts = DialFact.defaults
 
     public init() {}
 
@@ -42,6 +55,7 @@ public struct Settings: Equatable, Sendable {
         case workingHoursPerDay, workingDays, payday, startHour, endHour
         case selectedPeriod, theme, showInMenuBar, menuBarAmount
         case launchAtLogin, notifyEndOfDay, notifyPayday
+        case dialFacts
     }
 }
 
@@ -122,6 +136,9 @@ extension Settings {
         case .notifyPayday:
             guard let flag = bool(value) else { return false }
             notifyPayday = flag
+        case .dialFacts:
+            guard let facts = facts(value) else { return false }
+            dialFacts = facts
         }
 
         return true
@@ -146,6 +163,7 @@ extension Settings {
             Key.launchAtLogin.rawValue: launchAtLogin,
             Key.notifyEndOfDay.rawValue: notifyEndOfDay,
             Key.notifyPayday.rawValue: notifyPayday,
+            Key.dialFacts.rawValue: dialFacts.map(\.rawValue),
         ]
     }
 
@@ -193,6 +211,19 @@ private func currency(_ value: Any) -> String? {
           string.wholeMatch(of: /[A-Z]{3}/) != nil
     else { return nil }
     return string
+}
+
+/// A list of fact names: the ones this version knows (a later one may add
+/// more), each once, the first `DialFact.maximum`
+private func facts(_ value: Any) -> [DialFact]? {
+    guard let names = value as? [Any] else { return nil }
+    var facts: [DialFact] = []
+    for case let name as String in names {
+        if let fact = DialFact(rawValue: name), !facts.contains(fact) {
+            facts.append(fact)
+        }
+    }
+    return Array(facts.prefix(DialFact.maximum))
 }
 
 private func time(_ value: Any) -> String? {
