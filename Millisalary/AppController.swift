@@ -46,12 +46,8 @@ final class AppController {
         NSWindow.allowsAutomaticWindowTabbing = false
         ElectronSettingsImport.runIfNeeded(into: store, rates: rates)
         followRatePair()
-        NSWorkspace.shared.notificationCenter.addObserver(
-            forName: NSWorkspace.didWakeNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            MainActor.assumeIsolated { self?.rates.refresh() }
+        NSWorkspace.shared.notificationCenter.observe(NSWorkspace.didWakeNotification) { [weak self] in
+            self?.rates.refresh()
         }
         statusItem = StatusItemController(
             store: store,
@@ -105,23 +101,21 @@ final class AppController {
 
     /// The exchange rate follows the currencies in the settings
     private func followRatePair() {
-        withObservationTracking {
+        followChanges { [weak self] in
+            guard let self else { return }
             rates.follow(store.settings.ratePair)
-        } onChange: { [weak self] in
-            Task { @MainActor in self?.followRatePair() }
         }
     }
 
     /// The appearance setting, applied to the whole app
     private func followTheme() {
-        withObservationTracking {
+        followChanges { [weak self] in
+            guard let self else { return }
             NSApp.appearance = switch store.settings.theme {
             case .system: nil
             case .light: NSAppearance(named: .aqua)
             case .dark: NSAppearance(named: .darkAqua)
             }
-        } onChange: { [weak self] in
-            Task { @MainActor in self?.followTheme() }
         }
     }
 

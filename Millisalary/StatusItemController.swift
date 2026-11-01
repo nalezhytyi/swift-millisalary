@@ -49,28 +49,11 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         menu.delegate = self
         statusItem.menu = menu
 
-        refresh()
-        observeSettings()
-
-        // In the common modes the timer keeps firing while the menu is
-        // open, so the amounts in it stay live
-        let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated { self?.refresh() }
-        }
-        timer.tolerance = 0.1
-        RunLoop.main.add(timer, forMode: .common)
-    }
-
-    private func observeSettings() {
-        withObservationTracking {
-            _ = store.settings
-            _ = rates.current
-        } onChange: { [weak self] in
-            Task { @MainActor in
-                self?.refresh()
-                self?.observeSettings()
-            }
-        }
+        // At once when the settings or the rate change, and every second;
+        // the timer keeps firing while the menu is open, so the amounts in
+        // it stay live
+        followChanges { [weak self] in self?.refresh() }
+        Timer.repeating(every: 1, tolerance: 0.1) { [weak self] in self?.refresh() }
     }
 
     private func refresh() {

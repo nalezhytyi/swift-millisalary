@@ -30,7 +30,7 @@ final class NotificationController {
 
     private static let handledKey = "notificationsHandled"
     private static let checkInterval: TimeInterval = 30
-    private nonisolated static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Millisalary", category: "notifications")
+    private nonisolated static let log = Logger(category: "notifications")
 
     /// `showWindow` is what a click on an earnings notification does
     init(
@@ -79,23 +79,13 @@ final class NotificationController {
 
     func start() {
         followSettings()
-
-        let timer = Timer(timeInterval: Self.checkInterval, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated { self?.check() }
-        }
-        timer.tolerance = 5
-        RunLoop.main.add(timer, forMode: .common)
-
-        NSWorkspace.shared.notificationCenter.addObserver(
-            forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
-        ) { [weak self] _ in
-            MainActor.assumeIsolated { self?.check() }
+        Timer.repeating(every: Self.checkInterval, tolerance: 5) { [weak self] in self?.check() }
+        NSWorkspace.shared.notificationCenter.observe(NSWorkspace.didWakeNotification) { [weak self] in
+            self?.check()
         }
         // Notifications may have been allowed or turned off in System Settings
-        NotificationCenter.default.addObserver(
-            forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main
-        ) { [weak self] _ in
-            MainActor.assumeIsolated { self?.refreshAuthorization() }
+        NotificationCenter.default.observe(NSApplication.didBecomeActiveNotification) { [weak self] in
+            self?.refreshAuthorization()
         }
         refreshAuthorization()
     }
@@ -103,7 +93,8 @@ final class NotificationController {
     /// Checks on every settings change, and asks for permission once a
     /// notification is wanted (at launch with the defaults, which have both on)
     private func followSettings() {
-        withObservationTracking {
+        followChanges { [weak self] in
+            guard let self else { return }
             let settings = store.settings
             let wanted = settings.notifyEndOfDay || settings.notifyPayday
             if wanted && !wantedNotifications {
@@ -111,8 +102,6 @@ final class NotificationController {
             }
             wantedNotifications = wanted
             check()
-        } onChange: { [weak self] in
-            Task { @MainActor in self?.followSettings() }
         }
     }
 

@@ -21,7 +21,7 @@ final class LoginItemController {
     @ObservationIgnored private let store: SettingsStore
     @ObservationIgnored private var applied: Bool?
 
-    private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Millisalary", category: "login-item")
+    private static let log = Logger(category: "login-item")
     /// In the defaults: whether the item has been in place since the app
     /// last removed it, so that its absence means the user removed it
     private static let registeredKey = "loginItemRegistered"
@@ -43,10 +43,8 @@ final class LoginItemController {
             reconcile()
         }
         followSettings()
-        NotificationCenter.default.addObserver(
-            forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main
-        ) { [weak self] _ in
-            MainActor.assumeIsolated { self?.status = SMAppService.mainApp.status }
+        NotificationCenter.default.observe(NSApplication.didBecomeActiveNotification) { [weak self] in
+            self?.status = SMAppService.mainApp.status
         }
     }
 
@@ -82,7 +80,8 @@ final class LoginItemController {
     }
 
     private func followSettings() {
-        withObservationTracking {
+        followChanges { [weak self] in
+            guard let self else { return }
             let enabled = store.settings.launchAtLogin
             if enabled != applied {
                 // The first pass only records the state the launch settled on
@@ -91,8 +90,6 @@ final class LoginItemController {
                 }
                 applied = enabled
             }
-        } onChange: { [weak self] in
-            Task { @MainActor in self?.followSettings() }
         }
     }
 

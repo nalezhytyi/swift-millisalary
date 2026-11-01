@@ -19,14 +19,7 @@ final class Ticker {
 
     private func start() {
         now = Clock.now
-        // The common modes keep it ticking during a live resize and while a
-        // menu is open
-        let timer = Timer(timeInterval: 0.1, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated { self?.now = Clock.now }
-        }
-        timer.tolerance = 0.02
-        RunLoop.main.add(timer, forMode: .common)
-        self.timer = timer
+        timer = .repeating(every: 0.1, tolerance: 0.02) { [weak self] in self?.now = Clock.now }
     }
 
     private func stop() {

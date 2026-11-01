@@ -34,12 +34,8 @@ struct TickWhileVisible: NSViewRepresentable {
                 ticker.isRunning = false
                 return
             }
-            observer = NotificationCenter.default.addObserver(
-                forName: NSWindow.didChangeOcclusionStateNotification,
-                object: window,
-                queue: .main
-            ) { [weak self] _ in
-                MainActor.assumeIsolated { self?.update() }
+            observer = NotificationCenter.default.observe(NSWindow.didChangeOcclusionStateNotification, object: window) {
+                [weak self] in self?.update()
             }
             update()
         }

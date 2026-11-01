@@ -20,7 +20,7 @@ final class UpdateChecker {
     /// The version the user was last told about, so the daily check doesn't
     /// announce the same release every day
     private static let notifiedKey = "updateNotifiedVersion"
-    private nonisolated static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Millisalary", category: "updates")
+    private nonisolated static let log = Logger(category: "updates")
 
     init(notifications: NotificationController, analytics: Analytics, defaults: UserDefaults = .standard) {
         self.notifications = notifications
@@ -61,11 +61,7 @@ final class UpdateChecker {
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.firstCheckDelay) { [weak self] in
             self?.checkQuietly()
         }
-        let timer = Timer(timeInterval: Self.checkInterval, repeats: true) { [weak self] _ in
-            MainActor.assumeIsolated { self?.checkQuietly() }
-        }
-        timer.tolerance = 60 * 60
-        RunLoop.main.add(timer, forMode: .common)
+        Timer.repeating(every: Self.checkInterval, tolerance: 60 * 60) { [weak self] in self?.checkQuietly() }
     }
 
     /// Check for Updates… in the app menu (`.menu`) and the menu bar item's

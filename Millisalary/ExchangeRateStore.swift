@@ -26,7 +26,7 @@ final class ExchangeRateStore {
     @ObservationIgnored private var task: Task<Void, Never>?
 
     private static let cacheKey = "exchangeRates"
-    private static let log = Logger(subsystem: Bundle.main.bundleIdentifier ?? "Millisalary", category: "exchange-rate")
+    private static let log = Logger(category: "exchange-rate")
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults

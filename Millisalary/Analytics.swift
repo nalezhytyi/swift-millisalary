@@ -50,10 +50,8 @@ final class Analytics {
             enableDiagnostics: false
         ))
         amplitude?.add(plugin: barrier)
-        NotificationCenter.default.addObserver(
-            forName: NSApplication.willTerminateNotification, object: nil, queue: .main
-        ) { [weak self] _ in
-            MainActor.assumeIsolated { self?.sendPendingNow() }
+        NotificationCenter.default.observe(NSApplication.willTerminateNotification) { [weak self] in
+            self?.sendPendingNow()
         }
     }
 
