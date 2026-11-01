@@ -200,21 +200,29 @@ struct WindowFrameReporter: NSViewRepresentable {
             reportFrame()
         }
 
-        /// The frame as laid out now, after any pending layout
+        /// The frame as laid out now, after any pending layout. Only the
+        /// measure forces the window's layout: the reports come from layout
+        /// itself and from every update, which for the dial's face is every
+        /// tick
         func currentFrame() -> CGRect? {
+            window?.contentView?.layoutSubtreeIfNeeded()
+            return laidOutFrame()
+        }
+
+        func reportFrame() {
+            guard let flipped = laidOutFrame(), flipped != reported, flipped.width > 0 else { return }
+            reported = flipped
+            // Not during a SwiftUI update
+            DispatchQueue.main.async { [report] in report(flipped) }
+        }
+
+        /// The frame as of the last layout
+        private func laidOutFrame() -> CGRect? {
             guard let content = window?.contentView else { return nil }
-            content.layoutSubtreeIfNeeded()
             let frame = convert(bounds, to: content)
             return content.isFlipped
                 ? frame
                 : CGRect(x: frame.minX, y: content.bounds.height - frame.maxY, width: frame.width, height: frame.height)
-        }
-
-        func reportFrame() {
-            guard let flipped = currentFrame(), flipped != reported, flipped.width > 0 else { return }
-            reported = flipped
-            // Not during a SwiftUI update
-            DispatchQueue.main.async { [report] in report(flipped) }
         }
     }
 }
