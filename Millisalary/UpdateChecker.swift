@@ -12,6 +12,8 @@ final class UpdateChecker {
     private let notifications: NotificationController
     private let analytics: Analytics
     private let defaults: UserDefaults
+    /// A menu check's fetch or dialog is still going
+    private var isCheckingFromMenu = false
 
     private static let firstCheckDelay: TimeInterval = 15
     private static let checkInterval: TimeInterval = 24 * 60 * 60
@@ -67,11 +69,16 @@ final class UpdateChecker {
     }
 
     /// Check for Updates… in the app menu (`.menu`) and the menu bar item's
-    /// menu (`.tray`)
+    /// menu (`.tray`). A click while a check is still out (the request, or
+    /// its dialog) adds nothing: one dialog answers both. The click is
+    /// still reported, as the Electron app reported every one
     func checkFromMenu(source: ActionSource) {
         analytics.track("update_check_clicked", ["source": .string(source.rawValue)])
+        guard !isCheckingFromMenu else { return }
+        isCheckingFromMenu = true
         Task {
             show(await fetch())
+            isCheckingFromMenu = false
         }
     }
 
