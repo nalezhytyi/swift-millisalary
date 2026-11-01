@@ -441,7 +441,7 @@ private struct DialFactsPreview: View {
                 .padding(.vertical, 8)
         } else {
             SettingsFigures { figures in
-                DialFactCells(facts: facts, figures: figures)
+                DialFactCells(cells: figures.cells(facts))
             }
         }
     }

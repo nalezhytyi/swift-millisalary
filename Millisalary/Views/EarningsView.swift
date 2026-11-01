@@ -6,43 +6,10 @@ import SwiftUI
 /// yet, the form that sets one up
 struct EarningsView: View {
     @Environment(SettingsStore.self) private var store
-    @Environment(ExchangeRateStore.self) private var rates
-    @Environment(Ticker.self) private var ticker
 
     var body: some View {
-        let settings = store.settings
-        let display = settings.amountDisplay(rates)
-        let now = ticker.now
-        let earnings = settings.earnings(at: now, display)
-        let period = settings.selectedPeriod
-        let workday = WorkdayState(settings, at: now)
-
-        Group {
-            if settings.monthlySalary > 0 {
-                VStack(spacing: 0) {
-                    // The dial and its line stay together, centred in the
-                    // height the facts leave
-                    VStack(spacing: 14) {
-                        EarningsDial(
-                            earned: earnings[period].earned,
-                            total: earnings[period].total,
-                            currency: display.currency,
-                            period: period,
-                            scale: DialScale(period, workday, settings, at: now)
-                        )
-                        .frame(minWidth: 176, maxWidth: 384)
-                        Text(workday.status(for: period, at: now))
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                            .lineLimit(2)
-                    }
-                    .padding(.vertical, 16)
-                    .frame(maxHeight: .infinity)
-
-                    if !settings.dialFacts.isEmpty {
-                        FactsRow(facts: settings.dialFacts, figures: DialFactFigures(settings, display, earnings))
-                    }
-                }
+        if store.settings.monthlySalary > 0 {
+            LiveEarnings()
                 .padding(.horizontal, 20)
                 // The facts' Form adds its own 20 pt around the card
                 .padding(.bottom, 4)
@@ -51,8 +18,53 @@ struct EarningsView: View {
                 // Nothing scrolls under the toolbar here, so it has no bar;
                 // the setup form does scroll, and keeps it
                 .toolbarBackground(.hidden, for: .windowToolbar)
-            } else {
-                SalarySetupView()
+        } else {
+            SalarySetupView()
+        }
+    }
+}
+
+/// What the time changes, worked out on every tick of the Ticker (ten a
+/// second) and handed down as just what each part shows, so a part whose
+/// figures haven't changed (the labels, the facts at two decimals) isn't
+/// redrawn: only the amount and the ring's fill change on most ticks
+private struct LiveEarnings: View {
+    @Environment(SettingsStore.self) private var store
+    @Environment(ExchangeRateStore.self) private var rates
+    @Environment(Ticker.self) private var ticker
+
+    var body: some View {
+        let settings = store.settings
+        let display = settings.amountDisplay(rates)
+        let now = ticker.now
+        let model = EarningsModel()
+        let earnings = settings.earnings(at: now, display, model: model)
+        let period = settings.selectedPeriod
+        let workday = WorkdayState(settings, at: now, model: model)
+
+        VStack(spacing: 0) {
+            // The dial and its line stay together, centred in the height the
+            // facts leave
+            VStack(spacing: 14) {
+                EarningsDial(
+                    earned: earnings[period].earned,
+                    total: earnings[period].total,
+                    currency: display.currency,
+                    period: period,
+                    scale: DialScale(period, workday, settings, at: now, model: model)
+                )
+                .frame(minWidth: 176, maxWidth: 384)
+                Text(verbatim: workday.status(for: period, at: now))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+            }
+            .padding(.vertical, 16)
+            .frame(maxHeight: .infinity)
+
+            if !settings.dialFacts.isEmpty {
+                FactsRow(cells: DialFactFigures(settings, display, earnings).cells(settings.dialFacts))
+                    .equatable()
             }
         }
     }
@@ -67,15 +79,13 @@ struct WorkdayState {
     /// The next paid window's start after today's, and how many days on
     let next: (start: Date, days: Int)?
 
-    private static let english = Locale(identifier: "en_US")
     private struct NextKey: Equatable {
         let today: Date
         let workday: WorkdaySettings
     }
     private static let nextMemo = DayMemo<NextKey, (start: Date, days: Int)?>()
 
-    init(_ settings: MillisalaryCore.Settings, at now: Date) {
-        let model = EarningsModel()
+    init(_ settings: MillisalaryCore.Settings, at now: Date, model: EarningsModel = EarningsModel()) {
         let workday = settings.workday
         window = model.workingWindow(on: now, workday)
         isScheduled = model.isScheduledDay(now, workingDays: settings.workingDays)
@@ -109,8 +119,8 @@ struct WorkdayState {
         guard let next else { return opening }
         let when = switch next.days {
         case 1: "tomorrow"
-        case ..<7: next.start.formatted(.dateTime.weekday(.wide).locale(Self.english))
-        default: "on " + next.start.formatted(.dateTime.day().month(.wide).locale(Self.english))
+        case ..<7: next.start.formatted(.dateTime.weekday(.wide).locale(.english))
+        default: "on " + next.start.formatted(.dateTime.day().month(.wide).locale(.english))
         }
         return "\(opening) Earning resumes \(when) at \(next.start.formatted(time))"
     }
@@ -146,273 +156,10 @@ final class DayMemo<Key: Equatable, Value> {
     }
 }
 
-/// How the dial's ring is cut: one segment per unit of the period (the
-/// working day's hours, the paid weekdays, the months), a label for each,
-/// and the one under way, which is shown brighter
-struct DialScale {
-    var units: Double
-    /// How many units the period's total is worth: the fill is the progress
-    /// times this. The units, except for a month with fewer paid days than
-    /// the working days its salary is split over, and a day, whose clock
-    /// hours can take in part of an hour before the start or after the end
-    var unitsPerTotal: Double
-    /// Where the fill begins, in units: the minutes of a clock hour before a
-    /// workday that starts at 09:30, on This Hour's five-minute segments and
-    /// on Today's hours
-    var fillStart = 0.0
-    var labels: [String]
-    var current: Int?
-
-    private struct PaidDaysKey: Equatable {
-        let month: Date
-        let workingDays: Double
-    }
-    private static let paidDaysMemo = DayMemo<PaidDaysKey, [Date]>()
-
-    init(_ period: Period, _ workday: WorkdayState, _ settings: MillisalaryCore.Settings, at now: Date) {
-        let model = EarningsModel()
-        var calendar = model.calendar
-        calendar.locale = Locale(identifier: "en_US")
-        let window = workday.window
-        var perTotal: Double?
-        switch period {
-        case .hour:
-            // The clock's minutes; the hour's pay starts when the workday
-            // does, if that's within it
-            let hour = calendar.dateInterval(of: .hour, for: now)!.start
-            units = 12
-            fillStart = min(12, max(0, window.start.timeIntervalSince(hour) / 300))
-            labels = stride(from: 0, to: 60, by: 5).map { String(format: "%02ld", $0) }
-            current = workday.isEarning ? calendar.component(.minute, from: now) / 5 : nil
-        case .day:
-            // Clock hours, from the one the workday starts in to the one it
-            // ends in: a 09:30 start fills "9" from its middle
-            let firstHour = calendar.dateInterval(of: .hour, for: window.start)!.start
-            let hours = max(1.0 / 60, window.end.timeIntervalSince(window.start) / 3600)
-            fillStart = window.start.timeIntervalSince(firstHour) / 3600
-            units = max(1, (fillStart + hours).rounded(.up))
-            let first = calendar.component(.hour, from: firstHour)
-            labels = (0..<Int(units)).map { String((first + $0) % 24) }
-            current = workday.isEarning ? Int(now.timeIntervalSince(firstHour) / 3600) : nil
-            perTotal = hours
-        case .week:
-            units = 5
-            labels = Array(calendar.shortWeekdaySymbols[1...5])
-            // Only a paid weekday: one past the working days a month isn't
-            let weekday = (calendar.component(.weekday, from: now) + 5) % 7
-            current = weekday < 5 && workday.isScheduled ? weekday : nil
-        case .month:
-            // The month's paid days, dated: its weekdays until the working
-            // days a month run out (the model's isScheduledDay). With fewer
-            // weekdays than working days the salary still counts them all,
-            // so the last segments' worth is never reached and the ring
-            // fills by days
-            let start = calendar.dateInterval(of: .month, for: now)!.start
-            let paid = Self.paidDaysMemo.value(for: PaidDaysKey(month: start, workingDays: settings.workingDays)) {
-                calendar.range(of: .day, in: .month, for: now)!
-                    .map { calendar.date(byAdding: .day, value: $0 - 1, to: start)! }
-                    .filter { model.isScheduledDay($0, workingDays: settings.workingDays) }
-            }
-            units = max(1, min(Double(paid.count), settings.workingDays))
-            labels = paid.prefix(Int(units.rounded(.up))).map { String(calendar.component(.day, from: $0)) }
-            current = paid.firstIndex { calendar.isDate($0, inSameDayAs: now) }
-            perTotal = max(1, settings.workingDays)
-        case .year:
-            units = 12
-            labels = calendar.veryShortMonthSymbols
-            current = calendar.component(.month, from: now) - 1
-        }
-        unitsPerTotal = perTotal ?? units
-    }
-}
-
-/// The ring fills with the period's progress around the face and the amount
-/// earned so far, its last two of four decimals smaller. The ring grows in
-/// when it appears, and when the period changes it sweeps from the last
-/// period's fill to the new one; the ticks in between apply directly
-struct EarningsDial: View {
-    let earned: Double
-    let total: Double
-    let currency: String
-    let period: Period
-    let scale: DialScale
-
-    @Environment(SplashModel.self) private var splash
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var shownProgress = 0.0
-    @State private var animatingUntil = Date.distantPast
-
-    private var progress: Double {
-        total > 0 ? min(1, max(0, earned / total)) : 0
-    }
-
-    private var caption: String {
-        switch period {
-        case .hour: "per hour"
-        case .day: "today"
-        case .week: "this week"
-        case .month: "this month"
-        case .year: "this year"
-        }
-    }
-
-    var body: some View {
-        GeometryReader { proxy in
-            let side = min(proxy.size.width, proxy.size.height)
-            // The ring leaves a band outside it for the labels
-            let radius = side * 0.395
-            let stroke = side * 0.032
-            let labelRadius = side * 0.453
-
-            ZStack {
-                DialSegments(units: scale.units, fraction: 1, lineWidth: stroke)
-                    .stroke(.quaternary, style: StrokeStyle(lineWidth: stroke, lineCap: .round))
-                    .frame(width: radius * 2, height: radius * 2)
-                DialSegments(
-                    units: scale.units,
-                    from: scale.fillStart,
-                    fraction: (scale.fillStart + shownProgress * scale.unitsPerTotal) / scale.units,
-                    lineWidth: stroke
-                )
-                    .stroke(Color.accentColor, style: StrokeStyle(lineWidth: stroke, lineCap: .round))
-                    .frame(width: radius * 2, height: radius * 2)
-
-                ForEach(Array(scale.labels.enumerated()), id: \.offset) { index, label in
-                    // The middle of the label's segment, clockwise from the top
-                    let angle = (Double(index) + min(1, scale.units - Double(index)) / 2) / scale.units * 2 * .pi
-                    Text(label)
-                        .font(.system(size: max(9, side * 0.029), weight: index == scale.current ? .bold : .medium))
-                        .foregroundStyle(index == scale.current ? HierarchicalShapeStyle.primary : .secondary)
-                        .monospacedDigit()
-                        .fixedSize()
-                        .position(x: side / 2 + labelRadius * sin(angle), y: side / 2 - labelRadius * cos(angle))
-                }
-
-                VStack(spacing: side * 0.02) {
-                    MoneyFace()
-                        .frame(width: side * 0.16, height: side * 0.16)
-                        // Where the splash's face lands, hidden until it has
-                        .background(WindowFrameReporter { splash.dialFaceFrame = $0 } measure: { splash.measureDialFace = $0 })
-                        .opacity(splash.hidesDialFace ? 0 : 1)
-                    amount(side: side)
-                    Text("of \(formatCurrency(total, currency: currency)) \(caption)")
-                        .font(.system(size: side * 0.038))
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: side * 0.62)
-                }
-            }
-            .frame(width: side, height: side)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
-        .aspectRatio(1, contentMode: .fit)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(
-            "\(formatCurrency(earned, currency: currency)) earned \(caption), "
-                + "\(Int((progress * 100).rounded()))% of \(formatCurrency(total, currency: currency))"
-        )
-        .onAppear(perform: growRing)
-        .onChange(of: period, growRing)
-        .onChange(of: progress) {
-            if Date.now >= animatingUntil {
-                shownProgress = progress
-            }
-        }
-    }
-
-    private func growRing() {
-        guard !reduceMotion else {
-            shownProgress = progress
-            return
-        }
-        // Ease in and out, which ends on the value: a spring's long tail
-        // near an empty ring left a round cap's dot on screen for a second
-        animatingUntil = Date.now.addingTimeInterval(0.7)
-        withAnimation(.easeInOut(duration: 0.6)) {
-            shownProgress = progress
-        }
-    }
-
-    /// Sized to fit inside the ring, as the Electron app estimates it: about
-    /// 0.58 em a glyph in 60% of the width
-    private func amount(side: CGFloat) -> some View {
-        let parts = formatCurrencyParts(earned, currency: currency, fractionDigits: 4)
-        let big = String(parts.fraction.prefix(2))
-        let small = String(parts.fraction.dropFirst(2))
-        let glyphs = Double(parts.integer.count + 1 + big.count) + Double(small.count) * 0.6
-            + Double(parts.symbol.count + 1) * 0.7
-        let size = side * min(17, 60 / (glyphs * 0.58)) / 100
-
-        let number = Text(parts.sign + parts.integer + parts.decimal + big)
-        let tail = Text(small).font(.system(size: size * 0.62, weight: .semibold)).foregroundStyle(.secondary)
-        let symbol = Text(parts.symbol).font(.system(size: size * 0.7, weight: .semibold)).foregroundStyle(Color.accentColor)
-        let text = parts.symbolPosition == .prefix
-            ? Text("\(symbol)\(number)\(tail)")
-            : Text("\(number)\(tail) \(symbol)")
-
-        return text
-            .font(.system(size: size, weight: .semibold))
-            .monospacedDigit()
-            .lineLimit(1)
-            .fixedSize()
-    }
-}
-
-/// The dial's ring cut into the period's units, from the top clockwise and
-/// filled from `from` units to `fraction` of the way round (the last unit
-/// can be a part of one). The fill animates as a fraction of the ring, not
-/// in units, so a switch from This Year's twelve segments to This Month's
-/// twenty-one sweeps from where the fill was. Round caps reach past an
-/// arc's ends, so each gap leaves room for two of them besides the 3° that
-/// show. Off the main actor, as `Shape` needs
-nonisolated struct DialSegments: Shape {
-    var units: Double
-    var from = 0.0
-    var fraction: Double
-    var lineWidth: CGFloat
-
-    var animatableData: Double {
-        get { fraction }
-        set { fraction = newValue }
-    }
-
-    func path(in rect: CGRect) -> Path {
-        let radius = min(rect.width, rect.height) / 2
-        let center = CGPoint(x: rect.midX, y: rect.midY)
-        let cap = Double(lineWidth / 2 / radius) * 180 / .pi
-        let gap = 3 + 2 * cap
-        let degreesPerUnit = 360 / units
-        let filled = fraction * units
-
-        var path = Path()
-        for index in 0..<Int(units.rounded(.up)) {
-            let unit = Double(index)
-            let length = min(1, units - unit)
-            guard filled > unit else { break }
-            guard from < unit + length else { continue }
-            let start = unit * degreesPerUnit + gap / 2
-            let end = (unit + length) * degreesPerUnit - gap / 2
-            guard end > start else { continue }
-            // The unit's share of the fill, laid over the part of the
-            // segment that's drawn, so the head moves at an even pace from
-            // one end to the other. Placing it at the fill's own angle less
-            // a cap held it at the start for the first third of a This Month
-            // day, until the fill caught up with the gap and the cap
-            let lower = start + (end - start) * min(1, max(0, (from - unit) / length))
-            let upper = start + (end - start) * min(1, max(0, (filled - unit) / length))
-            let radians = (lower - 90) * .pi / 180
-            path.move(to: CGPoint(x: center.x + radius * cos(radians), y: center.y + radius * sin(radians)))
-            path.addArc(center: center, radius: radius, startAngle: .degrees(lower - 90), endAngle: .degrees(upper - 90), clockwise: false)
-        }
-        return path
-    }
-}
-
 /// The facts chosen in Settings, in a row under the dial, the same for
-/// every period
-private struct FactsRow: View {
-    let facts: [DialFact]
-    let figures: DialFactFigures
+/// every period; redrawn only when what one of them says changes
+private struct FactsRow: View, Equatable {
+    let cells: [DialFactCell]
 
     var body: some View {
         // A grouped Form's card, as Breakdown's rates are in; the Form is as
@@ -422,7 +169,7 @@ private struct FactsRow: View {
         // 2026-11-01), so the pane allows for it
         Form {
             Section {
-                DialFactCells(facts: facts, figures: figures)
+                DialFactCells(cells: cells)
             }
         }
         .formStyle(.grouped)

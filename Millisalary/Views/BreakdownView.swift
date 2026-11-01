@@ -2,72 +2,41 @@ import MillisalaryCore
 import SwiftUI
 
 /// The live earnings in full: the next payday, each period's progress, the
-/// rate and what it's worked out from
+/// rate and what it's worked out from. Worked out on every tick, and handed
+/// to each part as the text it shows, so a part is only redrawn when that
+/// changes: at two decimals most ticks change nothing on screen
 struct BreakdownView: View {
     @Environment(SettingsStore.self) private var store
     @Environment(ExchangeRateStore.self) private var rates
     @Environment(Ticker.self) private var ticker
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var flyingMoney = FrameAnimation.flyingMoney()
-
-    private static let english = Locale(identifier: "en_US")
 
     var body: some View {
         let settings = store.settings
         let display = settings.amountDisplay(rates)
         let earnings = settings.earnings(at: ticker.now, display)
-        let currency = display.currency
-        let money = { (amount: Double) in formatCurrency(amount, currency: currency) }
+        let money = { (amount: Double) in formatCurrency(amount, currency: display.currency) }
 
         Form {
             Section {
-                payday(earnings.nextPayday, paycheck: money(earnings.nextPayday.amount))
+                PaydayCard(
+                    date: earnings.nextPayday.date,
+                    daysLeft: earnings.nextPayday.isToday ? nil : earnings.nextPayday.daysLeft,
+                    paycheck: money(earnings.nextPayday.amount),
+                    animation: flyingMoney
+                )
+                .equatable()
             }
 
             Section("Earned so far") {
-                // One grid rather than a row per period, so the bars and the
-                // amounts line up in columns
-                Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 10) {
-                    ForEach(Period.allCases, id: \.self) { period in
-                        let amount = earnings[period]
-                        let progress = amount.total > 0 ? min(1, max(0, amount.earned / amount.total)) : 0
-                        if period != Period.allCases.first {
-                            Divider()
-                        }
-                        GridRow {
-                            Text(period.label)
-                            ProgressView(value: progress)
-                                .accessibilityLabel("\(period.label) progress")
-                            VStack(alignment: .trailing, spacing: 1) {
-                                Text(money(amount.earned))
-                                    .fontWeight(.semibold)
-                                Text("of \(money(amount.total))")
-                                    .font(.subheadline)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .gridColumnAlignment(.trailing)
-                            Text(progress, format: .percent.precision(.fractionLength(0)).locale(Self.english))
-                                .font(.callout)
-                                .foregroundStyle(.secondary)
-                                .gridColumnAlignment(.trailing)
-                        }
-                        .monospacedDigit()
-                    }
-                }
-                .padding(.vertical, 4)
+                EarnedGrid(rows: Period.allCases.map { EarnedGrid.Row(earnings[$0], label: $0.label, money: money) })
+                    .equatable()
             }
 
             Section {
-                HStack(spacing: 12) {
-                    rate(formatCurrency(earnings.rates.perSecond, currency: currency, fractionDigits: 4), "Per second")
-                    Divider()
-                    rate(money(earnings.rates.perMinute), "Per minute")
-                    Divider()
-                    rate(money(earnings.rates.perHour), "Per hour")
-                    Divider()
-                    rate(money(earnings.rates.perDay), "Per day")
-                }
-                .padding(.vertical, 4)
+                // The same cells as the facts under the dial
+                DialFactCells(cells: DialFactFigures(settings, display, earnings).cells([.perSecond, .perMinute, .perHour, .perDay]))
+                    .equatable()
             } header: {
                 Text("Your rate")
             } footer: {
@@ -85,51 +54,6 @@ struct BreakdownView: View {
         .onDisappear { flyingMoney.unload() }
     }
 
-    /// The next payday's date and paycheck, and a countdown to it
-    private func payday(_ payday: EarningsSnapshot.NextPayday, paycheck: String) -> some View {
-        HStack(spacing: 14) {
-            // Holds still on frame 0 under Reduce Motion
-            AnimatedFrames(animation: flyingMoney, paused: reduceMotion)
-                .frame(width: 64, height: 64)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Next payday")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                Text(
-                    payday.date,
-                    format: .dateTime.weekday(.wide).month(.wide).day().locale(Self.english)
-                )
-                .font(.title2.weight(.semibold))
-                Text("Paycheck \(Text(paycheck).fontWeight(.medium).foregroundStyle(.primary))")
-                    .foregroundStyle(.secondary)
-                    .monospacedDigit()
-            }
-            Spacer(minLength: 12)
-            VStack(alignment: .trailing, spacing: 2) {
-                if payday.isToday {
-                    Text("Today")
-                        .font(.system(size: 28, weight: .semibold, design: .rounded))
-                        .foregroundStyle(Color.accentColor)
-                } else {
-                    Text("\(payday.daysLeft)")
-                        .font(.system(size: 40, weight: .semibold, design: .rounded))
-                        .monospacedDigit()
-                        .foregroundStyle(Color.accentColor)
-                    Text(payday.daysLeft == 1 ? "day left" : "days left")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-        .padding(.vertical, 6)
-    }
-
-    private func rate(_ amount: String, _ label: String) -> some View {
-        FigureCell(value: Text(amount), label: label)
-    }
-
-    /// What the rate is worked out from: the salary, the paid days and today's
-    /// working hours
     /// The rate in use when the currencies differ, or why there's none yet
     private func exchangeRateNote(_ pair: CurrencyPair, _ display: AmountDisplay) -> String? {
         guard !pair.isSameCurrency else { return nil }
@@ -137,6 +61,110 @@ struct BreakdownView: View {
             return "Amounts are in \(pair.from) until the \(pair.from) to \(pair.to) exchange rate arrives."
         }
         return "1 \(pair.from) = \(rate) \(pair.to)"
+    }
+}
+
+/// The next payday's date and paycheck, and a countdown to it
+private struct PaydayCard: View, Equatable {
+    let date: Date
+    /// nil on payday itself
+    let daysLeft: Int?
+    let paycheck: String
+    let animation: FrameAnimation
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        HStack(spacing: 14) {
+            // Holds still on frame 0 under Reduce Motion
+            AnimatedFrames(animation: animation, paused: reduceMotion)
+                .frame(width: 64, height: 64)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Next payday")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                Text(date, format: .dateTime.weekday(.wide).month(.wide).day().locale(.english))
+                    .font(.title2.weight(.semibold))
+                Text("Paycheck \(Text(verbatim: paycheck).fontWeight(.medium).foregroundStyle(.primary))")
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+            Spacer(minLength: 12)
+            VStack(alignment: .trailing, spacing: 2) {
+                if let daysLeft {
+                    Text(daysLeft, format: .number)
+                        .font(.system(size: 40, weight: .semibold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(Color.accentColor)
+                    Text(daysLeft == 1 ? "day left" : "days left")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("Today")
+                        .font(.system(size: 28, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Color.accentColor)
+                }
+            }
+        }
+        .padding(.vertical, 6)
+    }
+
+    static func == (a: Self, b: Self) -> Bool {
+        a.date == b.date && a.daysLeft == b.daysLeft && a.paycheck == b.paycheck && a.animation === b.animation
+    }
+}
+
+/// Each period's progress: one grid rather than a row per period, so the
+/// bars and the amounts line up in columns
+private struct EarnedGrid: View, Equatable {
+    struct Row: Equatable {
+        let label: String
+        /// In steps of 0.1%, a fraction of a pixel on the bar, so the bars
+        /// aren't redrawn on every tick
+        let bar: Double
+        let earned: String
+        let total: String
+        let percent: String
+
+        init(_ amount: PeriodEarnings, label: String, money: (Double) -> String) {
+            let progress = amount.total > 0 ? min(1, max(0, amount.earned / amount.total)) : 0
+            self.label = label
+            bar = (progress * 1000).rounded(.down) / 1000
+            earned = money(amount.earned)
+            total = money(amount.total)
+            percent = progress.formatted(.percent.precision(.fractionLength(0)).locale(.english))
+        }
+    }
+
+    let rows: [Row]
+
+    var body: some View {
+        Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 10) {
+            ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
+                if index > 0 {
+                    Divider()
+                }
+                GridRow {
+                    Text(verbatim: row.label)
+                    ProgressView(value: row.bar)
+                        .accessibilityLabel("\(row.label) progress")
+                    VStack(alignment: .trailing, spacing: 1) {
+                        Text(verbatim: row.earned)
+                            .fontWeight(.semibold)
+                        Text(verbatim: "of \(row.total)")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .gridColumnAlignment(.trailing)
+                    Text(verbatim: row.percent)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .gridColumnAlignment(.trailing)
+                }
+                .monospacedDigit()
+            }
+        }
+        .padding(.vertical, 4)
     }
 }
 
@@ -157,27 +185,5 @@ private struct ScheduleLine: View {
                 + "paid evenly from \(window.start.formatted(hours)) to \(window.end.formatted(hours)), Monday to Friday.",
             systemImage: "calendar"
         )
-    }
-}
-
-/// A figure and what it is, centred in one of a row of cells split by
-/// dividers in a Form card: Breakdown's rates and the facts under the
-/// Earnings dial
-struct FigureCell: View {
-    let value: Text
-    let label: String
-
-    var body: some View {
-        VStack(spacing: 2) {
-            value
-                .font(.title2.weight(.semibold))
-                .monospacedDigit()
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-            Text(label)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity)
     }
 }

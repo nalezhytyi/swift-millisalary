@@ -66,6 +66,12 @@ struct DialFactFigures {
         }
     }
 
+    /// The card's cells for `facts`, in their order: with four, the payday
+    /// leaves its date out to fit
+    func cells(_ facts: [DialFact]) -> [DialFactCell] {
+        facts.map { DialFactCell(fact: $0, value: value($0, compact: facts.count >= DialFact.maximum), label: label($0)) }
+    }
+
     /// `compact` leaves the payday's date out, for a quarter of the card
     func value(_ fact: DialFact, compact: Bool = false) -> Text {
         let rates = earnings.rates
@@ -102,21 +108,50 @@ struct DialFactFigures {
     }
 }
 
-/// The chosen facts side by side, split by dividers: the card under the
-/// dial, and its preview in Settings
-struct DialFactCells: View {
-    let facts: [DialFact]
-    let figures: DialFactFigures
+/// What one cell of the card says
+struct DialFactCell: Equatable {
+    let fact: DialFact
+    let value: Text
+    let label: String
+}
+
+/// Figures side by side, split by dividers: the facts in the card under the
+/// dial and in its preview in Settings, and Breakdown's rates. Equatable, so
+/// a tick that changes none of them can skip it
+struct DialFactCells: View, Equatable {
+    let cells: [DialFactCell]
 
     var body: some View {
         HStack(spacing: 12) {
-            ForEach(Array(facts.enumerated()), id: \.element) { index, fact in
+            ForEach(Array(cells.enumerated()), id: \.element.fact) { index, cell in
                 if index > 0 {
                     Divider()
                 }
-                FigureCell(value: figures.value(fact, compact: facts.count >= DialFact.maximum), label: figures.label(fact))
+                FigureCell(value: cell.value, label: cell.label)
             }
         }
         .padding(.vertical, 4)
+    }
+}
+
+/// A figure and what it is, centred in one of a row of cells split by
+/// dividers in a Form card: Breakdown's rates and the facts under the
+/// Earnings dial
+struct FigureCell: View {
+    let value: Text
+    let label: String
+
+    var body: some View {
+        VStack(spacing: 2) {
+            value
+                .font(.title2.weight(.semibold))
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Text(label)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
     }
 }
