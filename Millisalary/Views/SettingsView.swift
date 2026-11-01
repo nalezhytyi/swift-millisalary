@@ -11,6 +11,10 @@ struct SettingsView: View {
     @Environment(LoginItemController.self) private var loginItem
     @Environment(Analytics.self) private var analytics
 
+    /// What the salary field shows, the stored salary between edits
+    @State private var salaryText = ""
+    @FocusState private var salaryFocused: Bool
+
     private static let currencies = ["UAH", "USD", "EUR", "PLN", "CZK", "RON"]
     private static let days = (1...31).map(Double.init)
     private static let hours = (1...24).map(Double.init)
@@ -20,8 +24,19 @@ struct SettingsView: View {
 
         Form {
             Section {
-                TextField("Monthly salary", value: binding(\.monthlySalary), format: .number)
+                TextField("Monthly salary", text: $salaryText)
                     .multilineTextAlignment(.trailing)
+                    .focused($salaryFocused)
+                    .onSubmit(commitSalary)
+                    .onChange(of: salaryFocused) { _, focused in
+                        if !focused { commitSalary() }
+                    }
+                    // Leaving the pane or closing the window while typing
+                    // commits too
+                    .onDisappear(perform: commitSalary)
+                    .onChange(of: settings.monthlySalary, initial: true) { _, salary in
+                        salaryText = salary.formatted(.number)
+                    }
                 Picker("Salary currency", selection: binding(\.monthlySalaryCurrency)) {
                     ForEach(withCurrent(Self.currencies, settings.monthlySalaryCurrency), id: \.self) {
                         Text($0)
@@ -151,6 +166,21 @@ struct SettingsView: View {
         let before = store.settings
         store.update(edit)
         analytics.settingsChanged(from: before, to: store.settings)
+    }
+
+    /// The salary field commits on Return or when focus leaves it, as a
+    /// native number field does, and then shows the stored salary again:
+    /// an amount the validator rejects (below 0) or text that isn't a
+    /// number goes back to it. A `TextField(value:format:)` kept showing a
+    /// rejected amount, since the stored one it reads hadn't changed
+    private func commitSalary() {
+        // Passing through the field doesn't round the stored amount to the
+        // digits shown
+        guard salaryText != store.settings.monthlySalary.formatted(.number) else { return }
+        if let salary = try? Double(salaryText, format: .number) {
+            update { $0.monthlySalary = salary }
+        }
+        salaryText = store.settings.monthlySalary.formatted(.number)
     }
 
     /// A value that is changed through one of the coupled-field edits
