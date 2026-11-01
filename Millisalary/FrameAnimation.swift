@@ -45,7 +45,11 @@ final class FrameAnimation {
               let source = CGImageSourceCreateWithURL(url as CFURL, nil)
         else { return }
 
-        let pixels = Int(largestSide * (NSScreen.main?.backingScaleFactor ?? 2))
+        // For the sharpest screen attached, not the main one: with a 1x
+        // display as the main screen, frames for it went blurry in a window
+        // on the Mac's Retina screen
+        let scale = NSScreen.screens.map(\.backingScaleFactor).max() ?? 2
+        let pixels = Int(largestSide * scale)
         let count = CGImageSourceGetCount(source)
         frames = Self.decode(url, frames: 0..<1, pixels: pixels)
         task = Task { [weak self] in
