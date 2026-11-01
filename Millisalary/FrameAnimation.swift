@@ -1,6 +1,7 @@
 import AppKit
 import ImageIO
 import Observation
+import QuartzCore
 import SwiftUI
 
 /// An animated image from the bundle, played on a clock of its own. ImageIO's
@@ -21,8 +22,9 @@ final class FrameAnimation {
     /// cycle runs over what it produced: a frame that fails to decode is
     /// left out instead of keeping every view on frame 0
     private(set) var isLoaded = false
-    /// When frame 0 is shown; the cycle runs from it
-    @ObservationIgnored var epoch = Date.now
+    /// When frame 0 is shown, in Core Animation's media time; the cycle
+    /// runs from it
+    private(set) var epoch = CACurrentMediaTime()
     @ObservationIgnored private var task: Task<Void, Never>?
 
     init(resource: String, withExtension fileExtension: String, largestSide: CGFloat, frameDuration: TimeInterval) {
@@ -32,10 +34,9 @@ final class FrameAnimation {
         self.frameDuration = frameDuration
     }
 
-    func frame(at date: Date) -> CGImage? {
-        guard isLoaded else { return frames.first }
-        let elapsed = max(0, date.timeIntervalSince(epoch))
-        return frames[Int(elapsed / frameDuration) % frames.count]
+    /// Starts the cycle again from frame 0, on every view that plays it
+    func restart() {
+        epoch = CACurrentMediaTime()
     }
 
     func load() {
@@ -57,7 +58,7 @@ final class FrameAnimation {
             guard !all.isEmpty else { return }
             frames = all
             isLoaded = true
-            epoch = .now
+            restart()
         }
     }
 
@@ -83,7 +84,8 @@ extension FrameAnimation {
     /// The largest face: the splash's, 96 pt
     static let largestFace: CGFloat = 96
 
-    /// The money face (Resources/money-face.webp, 150 frames of 20 ms): one
+    /// The money face (Resources/money-face.webp, 150 frames of 20 ms at
+    /// 192 px, the largest face on a Retina screen): one
     /// clock for every face on screen, so the splash's face lands on the
     /// dial's showing the same frame, as the Electron app gets from the
     /// browser keeping one animation clock per image. About 20 MB on a
@@ -93,25 +95,93 @@ extension FrameAnimation {
     }
 
     /// The flying money in Breakdown's payday card (Resources/money-flying.webp,
-    /// 150 frames of 20 ms at 192 px), decoded while the pane is shown
+    /// 150 frames of 20 ms at 128 px, its 64 pt on a Retina screen), decoded
+    /// while the pane is shown
     static func flyingMoney() -> FrameAnimation {
         FrameAnimation(resource: "money-flying", withExtension: "webp", largestSide: 64, frameDuration: 0.02)
     }
 }
 
-/// Plays a frame animation, or holds frame 0 while `paused`
+/// Plays a frame animation, or holds frame 0 while `paused`. Core Animation
+/// flips the frames in the render server, so a playing animation costs the
+/// app nothing per frame: a SwiftUI TimelineView that swapped the image
+/// updated the window's view graph 50 times a second for it. Every view on
+/// the same clock (`epoch`) shows the same frame
 struct AnimatedFrames: View {
     let animation: FrameAnimation
     var paused = false
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: animation.frameDuration, paused: paused || !animation.isLoaded)) { context in
-            if let frame = animation.frame(at: paused ? animation.epoch : context.date) {
-                Image(decorative: frame, scale: 1)
-                    .resizable()
-                    .interpolation(.high)
-                    .scaledToFit()
+        FrameLayer(
+            frames: animation.frames,
+            playing: animation.isLoaded && !paused,
+            epoch: animation.epoch,
+            frameDuration: animation.frameDuration
+        )
+    }
+}
+
+private struct FrameLayer: NSViewRepresentable {
+    let frames: [CGImage]
+    let playing: Bool
+    let epoch: CFTimeInterval
+    let frameDuration: TimeInterval
+
+    func makeNSView(context: Context) -> FrameView {
+        FrameView()
+    }
+
+    func updateNSView(_ view: FrameView, context: Context) {
+        view.show(frames, playing: playing, epoch: epoch, frameDuration: frameDuration)
+    }
+
+    final class FrameView: NSView {
+        private static let animationKey = "frames"
+        /// What the layer shows, so the updates that change nothing (the
+        /// dial's, ten a second) leave it alone
+        private var shown: (first: CGImage?, count: Int, playing: Bool, epoch: CFTimeInterval)?
+
+        init() {
+            super.init(frame: .zero)
+            wantsLayer = true
+        }
+
+        @available(*, unavailable)
+        required init?(coder: NSCoder) { fatalError() }
+
+        override func makeBackingLayer() -> CALayer {
+            let layer = CALayer()
+            layer.contentsGravity = .resizeAspect
+            // The frames are decoded for the largest face; smaller ones
+            // scale them down through mipmaps
+            layer.minificationFilter = .trilinear
+            return layer
+        }
+
+        func show(_ frames: [CGImage], playing: Bool, epoch: CFTimeInterval, frameDuration: TimeInterval) {
+            guard let layer else { return }
+            let next = (first: frames.first, count: frames.count, playing: playing, epoch: epoch)
+            if let shown, shown.first === next.first, shown.count == next.count,
+               shown.playing == next.playing, shown.epoch == next.epoch {
+                return
             }
+            shown = next
+
+            layer.removeAnimation(forKey: Self.animationKey)
+            layer.contents = frames.first
+            guard playing, frames.count > 1 else { return }
+
+            // Frame i from i to i + 1 frame durations into each cycle, the
+            // cycle counted from the epoch, as a discrete keyframe animation
+            let animation = CAKeyframeAnimation(keyPath: "contents")
+            animation.values = frames
+            animation.keyTimes = (0...frames.count).map { NSNumber(value: Double($0) / Double(frames.count)) }
+            animation.calculationMode = .discrete
+            animation.duration = frameDuration * Double(frames.count)
+            animation.repeatCount = .infinity
+            animation.beginTime = layer.convertTime(epoch, from: nil)
+            animation.isRemovedOnCompletion = false
+            layer.add(animation, forKey: Self.animationKey)
         }
     }
 }

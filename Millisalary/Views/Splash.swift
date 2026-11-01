@@ -65,7 +65,7 @@ final class SplashModel {
             } else {
                 // The cycle starts from frame 0 once the frames are decoded
                 await wait(5) { face.isLoaded }
-                face.epoch = .now
+                face.restart()
                 await wait(Self.cycle) { self.skipped }
             }
 
