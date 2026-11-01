@@ -1,58 +1,187 @@
 import MillisalaryCore
 import SwiftUI
 
-/// A period of the Earnings section: the dial, and under it today's, this
-/// week's and this month's amounts (or, with no salary yet, a way to
-/// Settings)
+/// A period of the Earnings section: the dial, a line on where the workday
+/// stands, and the rates and the next payday under it, or, with no salary
+/// yet, the form that sets one up
 struct EarningsView: View {
     @Environment(SettingsStore.self) private var store
-    @Environment(Navigation.self) private var navigation
     @Environment(ExchangeRateStore.self) private var rates
     @Environment(Ticker.self) private var ticker
-    @Environment(Analytics.self) private var analytics
 
     var body: some View {
         let settings = store.settings
         let display = settings.amountDisplay(rates)
-        let earnings = settings.earnings(at: ticker.now, display)
+        let now = ticker.now
+        let earnings = settings.earnings(at: now, display)
         let period = settings.selectedPeriod
+        let workday = WorkdayState(settings, at: now)
 
-        VStack(spacing: 0) {
-            EarningsDial(
-                earned: earnings[period].earned,
-                total: earnings[period].total,
-                currency: display.currency,
-                period: period
-            )
-            .frame(minWidth: 176, maxWidth: 384, maxHeight: .infinity)
-            .padding(.vertical, 16)
-
+        Group {
             if settings.monthlySalary > 0 {
-                StatsRow(earnings: earnings, currency: display.currency)
-            } else {
-                SetupHint {
-                    navigation.select(.settings, source: .setupHint, store: store, analytics: analytics)
+                VStack(spacing: 0) {
+                    // The dial and its line stay together, centred in the
+                    // height the facts leave
+                    VStack(spacing: 14) {
+                        EarningsDial(
+                            earned: earnings[period].earned,
+                            total: earnings[period].total,
+                            currency: display.currency,
+                            period: period,
+                            scale: DialScale(period, workday, settings, at: now)
+                        )
+                        // A new dial for each period, so its ring grows in
+                        // from empty: animating from the last period's fill
+                        // ran it backwards over segments that weren't its own
+                        .id(period)
+                        .frame(minWidth: 176, maxWidth: 384)
+                        Text(workday.status(for: period, at: now))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    .padding(.vertical, 16)
+                    .frame(maxHeight: .infinity)
+
+                    FactsRow(earnings: earnings, currency: display.currency)
                 }
+                .padding(.horizontal, 20)
+                // The facts' Form adds its own 20 pt around the card
+                .padding(.bottom, 4)
+                .frame(maxWidth: 600)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                SalarySetupView()
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.bottom, 24)
-        .frame(maxWidth: 448)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         // Nothing scrolls under the toolbar here, so it has no bar
         .toolbarBackground(.hidden, for: .windowToolbar)
     }
 }
 
+/// Today's working window and whether it pays, as the earnings model sees
+/// them, and when the next one starts
+struct WorkdayState {
+    let window: WorkingWindow
+    let isScheduled: Bool
+    let isEarning: Bool
+    /// The next paid window's start after today's, and how many days on
+    let next: (start: Date, days: Int)?
+
+    private static let english = Locale(identifier: "en_US")
+
+    init(_ settings: MillisalaryCore.Settings, at now: Date) {
+        let model = EarningsModel()
+        let workday = settings.workday
+        window = model.workingWindow(on: now, workday)
+        isScheduled = model.isScheduledDay(now, workingDays: settings.workingDays)
+        isEarning = isScheduled && window.start <= now && now < window.end
+
+        let today = model.calendar.startOfDay(for: now)
+        next = (1...31).lazy.compactMap { days -> (start: Date, days: Int)? in
+            let day = model.calendar.date(byAdding: .day, value: days, to: today)!
+            guard model.isScheduledDay(day, workingDays: settings.workingDays) else { return nil }
+            return (model.workingWindow(on: day, workday).start, days)
+        }.first
+    }
+
+    /// "3 h 30 min left today, until 17:00", or when earning starts again
+    func status(for period: Period, at now: Date) -> String {
+        let time = Date.FormatStyle.dateTime.hour().minute()
+        if isEarning {
+            let left = Self.duration(window.end.timeIntervalSince(now))
+            if period == .week {
+                let weekday = (EarningsModel().calendar.component(.weekday, from: now) + 5) % 7 + 1
+                return "Day \(weekday) of 5, \(left) left today"
+            }
+            return "\(left) left today, until \(window.end.formatted(time))"
+        }
+        if isScheduled && now < window.start {
+            return "Earning starts today at \(window.start.formatted(time))"
+        }
+        let opening = isScheduled ? "Done for today." : "Day off."
+        guard let next else { return opening }
+        let when = switch next.days {
+        case 1: "tomorrow"
+        case ..<7: next.start.formatted(.dateTime.weekday(.wide).locale(Self.english))
+        default: "on " + next.start.formatted(.dateTime.day().month(.wide).locale(Self.english))
+        }
+        return "\(opening) Earning resumes \(when) at \(next.start.formatted(time))"
+    }
+
+    /// "3 h 30 min", rounded up to the minute as a countdown is
+    private static func duration(_ seconds: TimeInterval) -> String {
+        let minutes = Int((seconds / 60).rounded(.up))
+        switch (minutes / 60, minutes % 60) {
+        case (0, let minutes): return "\(minutes) min"
+        case (let hours, 0): return "\(hours) h"
+        case (let hours, let minutes): return "\(hours) h \(minutes) min"
+        }
+    }
+}
+
+/// How the dial's ring is cut: one segment per unit of the period (the
+/// working day's hours, the paid weekdays, the months), a label for each,
+/// and the one under way, which is shown brighter
+struct DialScale {
+    var units: Double
+    /// How many units the period's total is worth: the fill is the progress
+    /// times this. The units, except for a month with fewer paid days than
+    /// the working days its salary is split over
+    var unitsPerTotal: Double
+    var labels: [String]
+    var current: Int?
+
+    init(_ period: Period, _ workday: WorkdayState, _ settings: MillisalaryCore.Settings, at now: Date) {
+        let model = EarningsModel()
+        var calendar = model.calendar
+        calendar.locale = Locale(identifier: "en_US")
+        switch period {
+        case .hour:
+            units = 12
+            labels = stride(from: 0, to: 60, by: 5).map { String(format: "%02d", $0) }
+            current = workday.isEarning ? calendar.component(.minute, from: now) / 5 : nil
+        case .day:
+            units = max(1, workday.window.end.timeIntervalSince(workday.window.start) / 3600)
+            let first = calendar.component(.hour, from: workday.window.start)
+            labels = (0..<Int(units.rounded(.up))).map { String((first + $0) % 24) }
+            current = workday.isEarning ? Int(now.timeIntervalSince(workday.window.start) / 3600) : nil
+        case .week:
+            units = 5
+            labels = Array(calendar.shortWeekdaySymbols[1...5])
+            let weekday = (calendar.component(.weekday, from: now) + 5) % 7
+            current = weekday < 5 ? weekday : nil
+        case .month:
+            // The month's paid days, dated: its weekdays until the working
+            // days a month run out (the model's isScheduledDay). With fewer
+            // weekdays than working days the salary still counts them all,
+            // so the last segments' worth is never reached and the ring
+            // fills by days
+            let start = calendar.dateInterval(of: .month, for: now)!.start
+            let paid = calendar.range(of: .day, in: .month, for: now)!
+                .map { calendar.date(byAdding: .day, value: $0 - 1, to: start)! }
+                .filter { model.isScheduledDay($0, workingDays: settings.workingDays) }
+            units = max(1, min(Double(paid.count), settings.workingDays))
+            labels = paid.prefix(Int(units.rounded(.up))).map { String(calendar.component(.day, from: $0)) }
+            current = paid.firstIndex { calendar.isDate($0, inSameDayAs: now) }
+        case .year:
+            units = 12
+            labels = calendar.veryShortMonthSymbols
+            current = calendar.component(.month, from: now) - 1
+        }
+        unitsPerTotal = period == .month ? max(1, settings.workingDays) : units
+    }
+}
+
 /// The ring fills with the period's progress around the face and the amount
 /// earned so far, its last two of four decimals smaller. The ring grows in
-/// when it appears and when the period changes; the ticks in between apply
-/// directly
+/// from empty when it appears (each period gets a dial of its own); the
+/// ticks after that apply directly
 struct EarningsDial: View {
     let earned: Double
     let total: Double
     let currency: String
     let period: Period
+    let scale: DialScale
 
     @Environment(SplashModel.self) private var splash
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -76,17 +205,29 @@ struct EarningsDial: View {
     var body: some View {
         GeometryReader { proxy in
             let side = min(proxy.size.width, proxy.size.height)
-            // The Electron app's SVG: a radius of 44 and a stroke of 6 in 100
-            let ring = Circle().inset(by: side * 0.06)
-            let stroke = side * 0.06
+            // The ring leaves a band outside it for the labels
+            let radius = side * 0.395
+            let stroke = side * 0.032
+            let labelRadius = side * 0.453
 
             ZStack {
-                ring.stroke(.quaternary, lineWidth: stroke)
-                ring.trim(from: 0, to: shownProgress)
+                DialSegments(units: scale.units, filled: scale.units, lineWidth: stroke)
+                    .stroke(.quaternary, style: StrokeStyle(lineWidth: stroke, lineCap: .round))
+                    .frame(width: radius * 2, height: radius * 2)
+                DialSegments(units: scale.units, filled: shownProgress * scale.unitsPerTotal, lineWidth: stroke)
                     .stroke(Color.accentColor, style: StrokeStyle(lineWidth: stroke, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
-                    // A round cap would show a dot at 0
-                    .opacity(shownProgress > 0 ? 1 : 0)
+                    .frame(width: radius * 2, height: radius * 2)
+
+                ForEach(Array(scale.labels.enumerated()), id: \.offset) { index, label in
+                    // The middle of the label's segment, clockwise from the top
+                    let angle = (Double(index) + min(1, scale.units - Double(index)) / 2) / scale.units * 2 * .pi
+                    Text(label)
+                        .font(.system(size: max(9, side * 0.029), weight: index == scale.current ? .bold : .medium))
+                        .foregroundStyle(index == scale.current ? HierarchicalShapeStyle.primary : .secondary)
+                        .monospacedDigit()
+                        .fixedSize()
+                        .position(x: side / 2 + labelRadius * sin(angle), y: side / 2 - labelRadius * cos(angle))
+                }
 
                 VStack(spacing: side * 0.02) {
                     MoneyFace()
@@ -112,7 +253,6 @@ struct EarningsDial: View {
                 + "\(Int((progress * 100).rounded()))% of \(formatCurrency(total, currency: currency))"
         )
         .onAppear(perform: growRing)
-        .onChange(of: period, growRing)
         .onChange(of: progress) {
             if Date.now >= animatingUntil {
                 shownProgress = progress
@@ -156,52 +296,91 @@ struct EarningsDial: View {
     }
 }
 
-private struct StatsRow: View {
+/// The dial's ring cut into the period's units, from the top clockwise and
+/// filled up to `filled` units (the last unit can be a part of one). Round
+/// caps reach past an arc's ends, so each gap leaves room for two of them
+/// besides the 3° that show. Off the main actor, as `Shape` needs
+nonisolated private struct DialSegments: Shape {
+    var units: Double
+    var filled: Double
+    var lineWidth: CGFloat
+
+    var animatableData: Double {
+        get { filled }
+        set { filled = newValue }
+    }
+
+    func path(in rect: CGRect) -> Path {
+        let radius = min(rect.width, rect.height) / 2
+        let center = CGPoint(x: rect.midX, y: rect.midY)
+        let cap = Double(lineWidth / 2 / radius) * 180 / .pi
+        let gap = 3 + 2 * cap
+        let degreesPerUnit = 360 / units
+
+        var path = Path()
+        for index in 0..<Int(units.rounded(.up)) {
+            let unit = Double(index)
+            guard filled > unit else { break }
+            let start = unit * degreesPerUnit + gap / 2
+            let end = (unit + min(1, units - unit)) * degreesPerUnit - gap / 2
+            guard end > start else { continue }
+            let reached = (unit + min(1, filled - unit)) * degreesPerUnit - cap
+            let stop = min(end, max(start, reached))
+            let radians = (start - 90) * .pi / 180
+            path.move(to: CGPoint(x: center.x + radius * cos(radians), y: center.y + radius * sin(radians)))
+            path.addArc(center: center, radius: radius, startAngle: .degrees(start - 90), endAngle: .degrees(stop - 90), clockwise: false)
+        }
+        return path
+    }
+}
+
+/// Three facts in a row under the dial, the same for every period: the rate
+/// a second and an hour, and the next payday
+private struct FactsRow: View {
     let earnings: EarningsSnapshot
     let currency: String
 
     var body: some View {
-        let stats: [(label: String, amount: Double)] = [
-            ("Today", earnings.day.earned),
-            ("This week", earnings.week.earned),
-            ("This month", earnings.month.earned),
+        let rates = earnings.rates
+        let facts: [(String, Text)] = [
+            ("Per second", Text(formatCurrency(rates.perSecond, currency: currency, fractionDigits: 4))),
+            ("Per hour", Text(formatCurrency(rates.perHour, currency: currency))),
+            ("Next payday", payday),
         ]
 
-        HStack(spacing: 0) {
-            ForEach(Array(stats.enumerated()), id: \.offset) { index, stat in
-                if index > 0 {
-                    Divider()
+        // A grouped Form's card, as Breakdown's rates are in; the Form is as
+        // tall as its card and draws no background of its own here
+        Form {
+            Section {
+                HStack(spacing: 12) {
+                    ForEach(Array(facts.enumerated()), id: \.offset) { index, fact in
+                        if index > 0 {
+                            Divider()
+                        }
+                        FigureCell(value: fact.1, label: fact.0)
+                    }
                 }
-                VStack(spacing: 2) {
-                    Text(formatCurrency(stat.amount, currency: currency))
-                        .font(.body.weight(.semibold))
-                        .monospacedDigit()
-                    Text(stat.label)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.horizontal, 4)
+                .padding(.vertical, 4)
             }
         }
+        .formStyle(.grouped)
+        .scrollContentBackground(.hidden)
+        .scrollDisabled(true)
         .fixedSize(horizontal: false, vertical: true)
     }
-}
 
-private struct SetupHint: View {
-    let openSettings: () -> Void
-
-    var body: some View {
-        VStack(spacing: 12) {
-            Text("Add your monthly salary to start tracking earnings.")
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-            Button("Open Settings", action: openSettings)
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
+    /// "In 6 days · Tue, 10 Nov", "Tomorrow · …" or "Today"
+    private var payday: Text {
+        let next = earnings.nextPayday
+        let when: String = switch next.daysLeft {
+        case 0: "Today"
+        case 1: "Tomorrow"
+        default: "In \(next.daysLeft) days"
         }
-        .padding(16)
-        .frame(maxWidth: .infinity)
-        .background(.fill.quaternary, in: RoundedRectangle(cornerRadius: 16))
+        guard next.daysLeft > 0 else { return Text(when) }
+        let date = Text(next.date, format: .dateTime.weekday(.abbreviated).day().month(.abbreviated))
+            .font(.callout.weight(.regular))
+            .foregroundStyle(.secondary)
+        return Text("\(when) \(Text("· ").font(.callout).foregroundStyle(.secondary))\(date)")
     }
 }

@@ -15,7 +15,7 @@ struct SettingsView: View {
     @State private var salaryText = ""
     @FocusState private var salaryFocused: Bool
 
-    private static let currencies = ["UAH", "USD", "EUR", "PLN", "CZK", "RON"]
+    static let currencies = ["UAH", "USD", "EUR", "PLN", "CZK", "RON"]
     private static let days = (1...31).map(Double.init)
     private static let hours = (1...24).map(Double.init)
 
@@ -24,29 +24,36 @@ struct SettingsView: View {
 
         Form {
             Section {
-                TextField("Monthly salary", text: $salaryText)
-                    .multilineTextAlignment(.trailing)
-                    .focused($salaryFocused)
-                    .onSubmit(commitSalary)
-                    .onChange(of: salaryFocused) { _, focused in
-                        if !focused { commitSalary() }
-                    }
-                    // Leaving the pane or closing the window while typing
-                    // commits too
-                    .onDisappear(perform: commitSalary)
-                    .onChange(of: settings.monthlySalary, initial: true) { _, salary in
-                        salaryText = salary.formatted(.number)
-                    }
-                    .onChange(of: salaryText) { old, text in
-                        filterSalary(old, text)
-                    }
+                // A bordered field, as in the setup form, rather than the
+                // Form's borderless inline one
+                LabeledContent("Monthly salary") {
+                    TextField("Monthly salary", text: $salaryText, prompt: Text(0, format: .number.precision(.fractionLength(2))))
+                        .labelsHidden()
+                        .textFieldStyle(.roundedBorder)
+                        .multilineTextAlignment(.trailing)
+                        .frame(width: 150)
+                        .focused($salaryFocused)
+                        .onSubmit(commitSalary)
+                        .onChange(of: salaryFocused) { _, focused in
+                            if !focused { commitSalary() }
+                        }
+                        // Leaving the pane or closing the window while typing
+                        // commits too
+                        .onDisappear(perform: commitSalary)
+                        .onChange(of: settings.monthlySalary, initial: true) { _, salary in
+                            salaryText = salary.formatted(.number)
+                        }
+                        .onChange(of: salaryText) { old, text in
+                            filterSalary(old, text)
+                        }
+                }
                 Picker("Salary currency", selection: binding(\.monthlySalaryCurrency)) {
-                    ForEach(withCurrent(Self.currencies, settings.monthlySalaryCurrency), id: \.self) {
+                    ForEach(Self.withCurrent(Self.currencies, settings.monthlySalaryCurrency), id: \.self) {
                         Text($0)
                     }
                 }
                 Picker("Display currency", selection: binding(\.earningsCurrency)) {
-                    ForEach(withCurrent(Self.currencies, settings.earningsCurrency), id: \.self) {
+                    ForEach(Self.withCurrent(Self.currencies, settings.earningsCurrency), id: \.self) {
                         Text($0)
                     }
                 }
@@ -58,19 +65,19 @@ struct SettingsView: View {
 
             Section {
                 Picker("Working days / month", selection: edit(settings.workingDays) { $0.setWorkingDays($1) }) {
-                    numbers(withCurrent(Self.days, settings.workingDays))
+                    numbers(Self.withCurrent(Self.days, settings.workingDays))
                 }
                 Picker("Working hours / day", selection: edit(settings.workingHoursPerDay) { $0.setWorkingHoursPerDay($1) }) {
-                    numbers(withCurrent(Self.hours, settings.workingHoursPerDay))
+                    numbers(Self.withCurrent(Self.hours, settings.workingHoursPerDay))
                 }
                 DatePicker(
                     "Start time",
-                    selection: time(start(settings)) { $0.setStartHour($1) },
+                    selection: time(settings.startTime) { $0.setStartHour($1) },
                     displayedComponents: .hourAndMinute
                 )
                 DatePicker(
                     "End time",
-                    selection: time(end(settings)) { $0.setEndHour($1) },
+                    selection: time(settings.endTime) { $0.setEndHour($1) },
                     displayedComponents: .hourAndMinute
                 )
             } header: {
@@ -81,7 +88,7 @@ struct SettingsView: View {
 
             Section {
                 Picker("Day of month", selection: edit(Double(settings.payday)) { $0.setPayday($1) }) {
-                    numbers(withCurrent(Self.days, Double(settings.payday)))
+                    numbers(Self.withCurrent(Self.days, Double(settings.payday)))
                 }
             } header: {
                 Text("Payday")
@@ -211,36 +218,20 @@ struct SettingsView: View {
         }
     }
 
-    // DatePicker edits a Date: a fixed day carries the time, one without a
-    // DST change so every time of day exists on it
-    private static let timeDay = Calendar.current.startOfDay(for: Date(timeIntervalSinceReferenceDate: 0))
-
     private func time(_ value: TimeOfDay, _ apply: @escaping (inout MillisalaryCore.Settings, TimeOfDay) -> Void) -> Binding<Date> {
         Binding {
-            Calendar.current.date(bySettingHour: value.hour, minute: value.minute, second: 0, of: Self.timeDay)!
+            value.pickerDate
         } set: { date in
-            let parts = Calendar.current.dateComponents([.hour, .minute], from: date)
-            let time = TimeOfDay(hour: parts.hour ?? 0, minute: parts.minute ?? 0)
+            let time = TimeOfDay(pickerDate: date)
             update { apply(&$0, time) }
         }
-    }
-
-    /// The times the earnings use when one is cleared: 09:00, and Start plus
-    /// hours a day
-    private func start(_ settings: MillisalaryCore.Settings) -> TimeOfDay {
-        TimeOfDay(parsing: settings.startHour) ?? TimeOfDay(hour: 9, minute: 0)
-    }
-
-    private func end(_ settings: MillisalaryCore.Settings) -> TimeOfDay {
-        TimeOfDay(parsing: settings.endHour)
-            ?? endHour(from: start(settings), workingHoursPerDay: settings.workingHoursPerDay)
     }
 
     // MARK: - Pieces
 
     /// The choices plus the current value when it isn't one of them (hours a
     /// day follow Start and End, so 09:00-17:20 makes 8.33)
-    private func withCurrent<Value: Comparable>(_ choices: [Value], _ current: Value) -> [Value] {
+    static func withCurrent<Value: Comparable>(_ choices: [Value], _ current: Value) -> [Value] {
         choices.contains(current) ? choices : (choices + [current]).sorted()
     }
 

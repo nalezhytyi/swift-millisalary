@@ -23,4 +23,31 @@ extension Settings {
     func earnings(at date: Date, _ display: AmountDisplay, model: EarningsModel = EarningsModel()) -> EarningsSnapshot {
         model.earnings(at: date, earningsSettings(exchangeRate: display.exchangeRate))
     }
+
+    /// The times the earnings use when one is cleared: 09:00, and Start plus
+    /// hours a day
+    var startTime: TimeOfDay {
+        TimeOfDay(parsing: startHour) ?? TimeOfDay(hour: 9, minute: 0)
+    }
+
+    var endTime: TimeOfDay {
+        TimeOfDay(parsing: endHour)
+            ?? MillisalaryCore.endHour(from: startTime, workingHoursPerDay: workingHoursPerDay)
+    }
+}
+
+extension TimeOfDay {
+    // DatePicker edits a Date: a fixed day carries the time, one without a
+    // DST change so every time of day exists on it
+    private static let pickerDay = Calendar.current.startOfDay(for: Date(timeIntervalSinceReferenceDate: 0))
+
+    /// This time on the day a DatePicker edits
+    var pickerDate: Date {
+        Calendar.current.date(bySettingHour: hour, minute: minute, second: 0, of: Self.pickerDay)!
+    }
+
+    init(pickerDate date: Date) {
+        let parts = Calendar.current.dateComponents([.hour, .minute], from: date)
+        self.init(hour: parts.hour ?? 0, minute: parts.minute ?? 0)
+    }
 }

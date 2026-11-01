@@ -125,17 +125,7 @@ struct BreakdownView: View {
     }
 
     private func rate(_ amount: String, _ label: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(amount)
-                .font(.title2.weight(.semibold))
-                .monospacedDigit()
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-            Text(label)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        FigureCell(value: Text(amount), label: label)
     }
 
     /// What the rate is worked out from: the salary, the paid days and today's
@@ -157,5 +147,27 @@ struct BreakdownView: View {
         }
         let rate = display.exchangeRate.formatted(.number.precision(.fractionLength(0...4)))
         return "1 \(pair.from) = \(rate) \(pair.to)"
+    }
+}
+
+/// A figure and what it is, centred in one of a row of cells split by
+/// dividers in a Form card: Breakdown's rates and the facts under the
+/// Earnings dial
+struct FigureCell: View {
+    let value: Text
+    let label: String
+
+    var body: some View {
+        VStack(spacing: 2) {
+            value
+                .font(.title2.weight(.semibold))
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Text(label)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
     }
 }
