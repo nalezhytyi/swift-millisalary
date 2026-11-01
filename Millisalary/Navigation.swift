@@ -3,16 +3,21 @@ import Observation
 import SwiftUI
 
 /// What the main window shows. Window state, not a setting; the period the
-/// Earnings pane shows is the `selectedPeriod` setting
+/// Earnings pane shows is the `selectedPeriod` setting. Settings is a window
+/// of its own
 enum Pane: Hashable {
-    case earnings, breakdown, settings
+    case earnings, breakdown
+}
+
+/// A tab of the Settings window. Window state too
+enum SettingsTab: String, Hashable {
+    case general, pay, schedule, glance, notifications
 }
 
 /// A row of the sidebar
 enum SidebarItem: Hashable {
     case period(Period)
     case breakdown
-    case settings
 
     /// Also the window's title while the row is selected
     var title: String {
@@ -23,7 +28,6 @@ enum SidebarItem: Hashable {
         case .period(.month): "This Month"
         case .period(.year): "This Year"
         case .breakdown: "Breakdown"
-        case .settings: "Settings"
         }
     }
 
@@ -35,7 +39,6 @@ enum SidebarItem: Hashable {
         case .period(.month): "calendar"
         case .period(.year): "calendar.circle"
         case .breakdown: "chart.bar"
-        case .settings: "gearshape"
         }
     }
 }
@@ -46,7 +49,6 @@ extension SidebarItem {
         self = switch pane {
         case .earnings: .period(period)
         case .breakdown: .breakdown
-        case .settings: .settings
         }
     }
 
@@ -54,16 +56,14 @@ extension SidebarItem {
         switch self {
         case .period: .earnings
         case .breakdown: .breakdown
-        case .settings: .settings
         }
     }
 
-    /// The analytics `item`: a period's name, "breakdown" or "settings"
+    /// The analytics `item`: a period's name or "breakdown"
     var analyticsName: String {
         switch self {
         case .period(let period): period.rawValue
         case .breakdown: "breakdown"
-        case .settings: "settings"
         }
     }
 }
@@ -77,6 +77,7 @@ enum ActionSource: String {
 @Observable
 final class Navigation {
     var pane = Pane.earnings
+    var settingsTab = SettingsTab.general
     var columnVisibility = NavigationSplitViewVisibility.all
     /// Set when the app was started at login: the window SwiftUI opens at
     /// launch closes again at once

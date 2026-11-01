@@ -23,10 +23,11 @@ final class AppController {
     private(set) lazy var updates = UpdateChecker(notifications: notifications, analytics: analytics)
     private var statusItem: StatusItemController?
 
-    /// SwiftUI's way to open the main window (a `Window` scene), which the
-    /// app menu's commands hand over: AppKit code like the menu bar item
-    /// can't get it from a view's environment
+    /// SwiftUI's way to open the main window (a `Window` scene) and the
+    /// Settings window, which the app menu's commands hand over: AppKit code
+    /// like the menu bar item can't get them from a view's environment
     var openWindow: OpenWindowAction?
+    var openSettings: OpenSettingsAction?
 
     /// Before the first window: whether it should stay closed (started at
     /// login: the menu bar item only), and the notification delegate, which
@@ -56,6 +57,7 @@ final class AppController {
             store: store,
             rates: rates,
             open: { [weak self] pane in self?.show(pane, source: .tray) },
+            openSettings: { [weak self] in self?.showSettings(source: .tray) },
             checkForUpdates: { [weak self] in self?.updates.checkFromMenu(source: .tray) },
             menuOpened: { [weak self] in self?.analytics.track("tray_menu_opened") }
         )
@@ -66,6 +68,11 @@ final class AppController {
         #if DEBUG
         if let pane = Self.debugLaunchPane {
             navigation.pane = pane
+        }
+        if let tab = UserDefaults.standard.string(forKey: "debugSettingsTab").flatMap(SettingsTab.init) {
+            navigation.settingsTab = tab
+            // Once SwiftUI has built the commands that hand over the opener
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in self?.openSettings?() }
         }
         DebugDump.scheduleIfAsked(statusMenu: statusItem?.menu)
         #endif
@@ -79,6 +86,13 @@ final class AppController {
             navigation.select(item, source: source, store: store, analytics: analytics)
         }
         openWindow?(id: Self.mainWindowID)
+        NSApp.activate()
+    }
+
+    /// Opens the Settings window, or brings it to the front
+    func showSettings(source: ActionSource) {
+        analytics.track("settings_opened", ["source": .string(source.rawValue)])
+        openSettings?()
         NSApp.activate()
     }
 
@@ -112,12 +126,12 @@ final class AppController {
     }
 
     #if DEBUG
-    /// Debug builds open on the pane named by `-debugPane earnings|breakdown|settings`
+    /// Debug builds open on the pane named by `-debugPane earnings|breakdown`,
+    /// and open Settings on the tab named by `-debugSettingsTab general|pay|…`
     private static var debugLaunchPane: Pane? {
         switch UserDefaults.standard.string(forKey: "debugPane") {
         case "earnings": .earnings
         case "breakdown": .breakdown
-        case "settings": .settings
         default: nil
         }
     }

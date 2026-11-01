@@ -1,8 +1,8 @@
 import MillisalaryCore
 import SwiftUI
 
-/// The main window's content: the sidebar, and the selected period, the
-/// Breakdown or the Settings next to it
+/// The main window's content: the sidebar, and the selected period or the
+/// Breakdown next to it
 struct MainView: View {
     @Environment(SettingsStore.self) private var store
     @Environment(Navigation.self) private var navigation
@@ -52,7 +52,7 @@ struct MainView: View {
     }
 
     /// Picking a period selects it in the settings too, as the Electron app
-    /// does; Breakdown and Settings are only window state
+    /// does; Breakdown is only window state
     private var selection: Binding<SidebarItem?> {
         Binding {
             selected
@@ -67,7 +67,6 @@ struct MainView: View {
         switch navigation.pane {
         case .earnings: EarningsView()
         case .breakdown: BreakdownView()
-        case .settings: SettingsView()
         }
     }
 }
@@ -84,7 +83,6 @@ private struct SidebarView: View {
             }
             Section {
                 row(.breakdown)
-                row(.settings)
             }
         }
     }

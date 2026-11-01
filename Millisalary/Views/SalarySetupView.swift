@@ -7,8 +7,8 @@ import SwiftUI
 /// Settings
 struct SalarySetupView: View {
     @Environment(SettingsStore.self) private var store
-    @Environment(Navigation.self) private var navigation
     @Environment(Analytics.self) private var analytics
+    @Environment(\.openSettings) private var openSettings
     @Environment(SplashModel.self) private var splash
 
     @State private var draft = MillisalaryCore.Settings.defaults
@@ -130,7 +130,8 @@ struct SalarySetupView: View {
                 Text("Everything else is in ")
                     .foregroundStyle(.secondary)
                 Button("Settings") {
-                    navigation.select(.settings, source: .setupHint, store: store, analytics: analytics)
+                    analytics.track("settings_opened", ["source": .string(ActionSource.setupHint.rawValue)])
+                    openSettings()
                 }
                 .buttonStyle(.link)
                 Text(".")

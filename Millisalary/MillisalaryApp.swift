@@ -26,6 +26,17 @@ struct MillisalaryApp: App {
         // scrolling; after that macOS restores the window's last frame
         .defaultSize(width: 860, height: 690)
         .windowResizability(.contentMinSize)
+
+        // A window of its own (⌘,), as in most Mac apps; its tabs size it
+        SwiftUI.Settings {
+            SettingsView()
+                .environment(app.store)
+                .environment(app.navigation)
+                .environment(app.rates)
+                .environment(app.notifications)
+                .environment(app.loginItem)
+                .environment(app.analytics)
+        }
         .commands {
             AppCommands(app: app)
         }
@@ -43,11 +54,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         app.start()
     }
 
-    /// A Dock click or a second launch brings the window back
+    /// A Dock click or a second launch brings the main window back, also
+    /// when only the Settings window is open
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
-        if !hasVisibleWindows {
-            app.show()
-        }
+        app.show()
         return true
     }
 
@@ -61,18 +71,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 private struct AppCommands: Commands {
     let app: AppController
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.openSettings) private var openSettings
 
     var body: some Commands {
         // The commands are built at launch whether or not the window is
-        // open, so this is where AppController gets the window opener
+        // open, so this is where AppController gets the window openers
         let _ = app.openWindow = openWindow
+        let _ = app.openSettings = openSettings
 
         CommandGroup(after: .appInfo) {
             Button("Check for Updates…") { app.updates.checkFromMenu(source: .menu) }
         }
 
         CommandGroup(replacing: .appSettings) {
-            Button("Settings…") { app.show(.settings) }
+            Button("Settings…") { app.showSettings(source: .shortcut) }
                 .keyboardShortcut(",")
         }
 

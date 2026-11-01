@@ -9,11 +9,13 @@ private extension UTType {
     static let dialFact = UTType(exportedAs: "com.nalezhytyi.millisalary.dial-fact")
 }
 
-/// The settings, laid out like a System Settings pane. Every edit applies at
-/// once; the schedule's Start, End and hours a day keep each other in step
-/// (Settings.setStartHour and friends)
+/// The Settings window (⌘,): a tab each for General, Pay, Schedule, At a
+/// Glance and Notifications, each a grouped Form as tall as what it holds.
+/// Every edit applies at once; the schedule's Start, End and hours a day
+/// keep each other in step (Settings.setStartHour and friends)
 struct SettingsView: View {
     @Environment(SettingsStore.self) private var store
+    @Environment(Navigation.self) private var navigation
     @Environment(NotificationController.self) private var notifications
     @Environment(LoginItemController.self) private var loginItem
     @Environment(Analytics.self) private var analytics
@@ -31,9 +33,80 @@ struct SettingsView: View {
     private static let hours = (1...24).map(Double.init)
 
     var body: some View {
+        @Bindable var navigation = navigation
+
+        TabView(selection: $navigation.settingsTab) {
+            general
+                .tabItem { Label("General", systemImage: "gearshape") }
+                .tag(SettingsTab.general)
+            pay
+                .tabItem { Label("Pay", systemImage: "banknote") }
+                .tag(SettingsTab.pay)
+            schedule
+                .tabItem { Label("Schedule", systemImage: "clock") }
+                .tag(SettingsTab.schedule)
+            glance
+                .tabItem { Label("At a Glance", systemImage: "gauge.with.dots.needle.33percent") }
+                .tag(SettingsTab.glance)
+            notificationsTab
+                .tabItem { Label("Notifications", systemImage: "bell") }
+                .tag(SettingsTab.notifications)
+        }
+    }
+
+    // MARK: - Tabs
+
+    private var general: some View {
         let settings = store.settings
 
-        Form {
+        return tab {
+            Section {
+                Toggle("Open at login", isOn: binding(\.launchAtLogin))
+                    .toggleStyle(.switch)
+            } footer: {
+                VStack(alignment: .leading, spacing: 6) {
+                    footer("Opens in the menu bar when your Mac starts, without showing the window.")
+                    if !LoginItemController.isManaged {
+                        footer("This Debug build doesn't register itself: only a Release build does.")
+                    } else if settings.launchAtLogin && loginItem.status == .requiresApproval {
+                        footer("Allow Millisalary under Login Items in System Settings.")
+                        Button("Open Login Items Settings…") {
+                            SMAppService.openSystemSettingsLoginItems()
+                        }
+                    }
+                }
+            }
+
+            Section {
+                Toggle("Show in menu bar", isOn: binding(\.showInMenuBar))
+                    .toggleStyle(.switch)
+                Picker("Amount", selection: binding(\.menuBarAmount)) {
+                    Text("Today").tag(MenuBarAmount.day)
+                    Text("Selected period").tag(MenuBarAmount.selected)
+                }
+                .disabled(!settings.showInMenuBar)
+            } header: {
+                Text("Menu bar")
+            } footer: {
+                footer("Shows your earnings next to an icon in the macOS menu bar, even when the window is closed.")
+            }
+
+            Section {
+                Picker("Appearance", selection: binding(\.theme)) {
+                    Text("System").tag(Theme.system)
+                    Text("Light").tag(Theme.light)
+                    Text("Dark").tag(Theme.dark)
+                }
+            } footer: {
+                footer("System follows the macOS appearance.")
+            }
+        }
+    }
+
+    private var pay: some View {
+        let settings = store.settings
+
+        return tab {
             Section {
                 // A bordered field, as in the setup form, rather than the
                 // Form's borderless inline one
@@ -48,7 +121,7 @@ struct SettingsView: View {
                         .onChange(of: salaryFocused) { _, focused in
                             if !focused { commitSalary() }
                         }
-                        // Leaving the pane or closing the window while typing
+                        // Another tab or closing the window while typing
                         // commits too
                         .onDisappear(perform: commitSalary)
                         .onChange(of: settings.monthlySalary, initial: true) { _, salary in
@@ -75,29 +148,6 @@ struct SettingsView: View {
             }
 
             Section {
-                Picker("Working days / month", selection: edit(settings.workingDays) { $0.setWorkingDays($1) }) {
-                    numbers(Self.withCurrent(Self.days, settings.workingDays))
-                }
-                Picker("Working hours / day", selection: edit(settings.workingHoursPerDay) { $0.setWorkingHoursPerDay($1) }) {
-                    numbers(Self.withCurrent(Self.hours, settings.workingHoursPerDay))
-                }
-                DatePicker(
-                    "Start time",
-                    selection: time(settings.startTime) { $0.setStartHour($1) },
-                    displayedComponents: .hourAndMinute
-                )
-                DatePicker(
-                    "End time",
-                    selection: time(settings.endTime) { $0.setEndHour($1) },
-                    displayedComponents: .hourAndMinute
-                )
-            } header: {
-                Text("Schedule")
-            } footer: {
-                footer("Hours per day follow the Start and End times: changing one updates the other.")
-            }
-
-            Section {
                 Picker("Day of month", selection: edit(Double(settings.payday)) { $0.setPayday($1) }) {
                     numbers(Self.withCurrent(Self.days, Double(settings.payday)))
                 }
@@ -106,36 +156,56 @@ struct SettingsView: View {
             } footer: {
                 footer("Day of the month your salary arrives. In shorter months the last day is used.")
             }
+        }
+    }
 
+    private var schedule: some View {
+        let settings = store.settings
+
+        return tab {
             Section {
-                Toggle("Open at login", isOn: binding(\.launchAtLogin))
-                    .toggleStyle(.switch)
-            } header: {
-                Text("General")
-            } footer: {
-                VStack(alignment: .leading, spacing: 6) {
-                    footer("Opens in the menu bar when your Mac starts, without showing the window.")
-                    if !LoginItemController.isManaged {
-                        footer("This Debug build doesn't register itself: only a Release build does.")
-                    } else if settings.launchAtLogin && loginItem.status == .requiresApproval {
-                        footer("Allow Millisalary under Login Items in System Settings.")
-                        Button("Open Login Items Settings…") {
-                            SMAppService.openSystemSettingsLoginItems()
-                        }
-                    }
+                Picker("Working days / month", selection: edit(settings.workingDays) { $0.setWorkingDays($1) }) {
+                    numbers(Self.withCurrent(Self.days, settings.workingDays))
                 }
+                Picker("Working hours / day", selection: edit(settings.workingHoursPerDay) { $0.setWorkingHoursPerDay($1) }) {
+                    numbers(Self.withCurrent(Self.hours, settings.workingHoursPerDay))
+                }
+                timeRow("Start time", time(settings.startTime) { $0.setStartHour($1) })
+                timeRow("End time", time(settings.endTime) { $0.setEndHour($1) })
+            } footer: {
+                footer("Hours per day follow the Start and End times: changing one updates the other.")
             }
+        }
+    }
 
+    private var glance: some View {
+        let settings = store.settings
+
+        return tab {
+            Section {
+                DialFactsPreview()
+                // The chosen facts first, in their order, then the rest
+                ForEach(settings.dialFacts + DialFact.allCases.filter { !settings.dialFacts.contains($0) }, id: \.self) { fact in
+                    dialFactRow(fact, chosen: settings.dialFacts)
+                }
+            } footer: {
+                footer("Up to four show under the dial on every period, in this order. Drag a checked row to move it.")
+            }
+        }
+    }
+
+    private var notificationsTab: some View {
+        let settings = store.settings
+
+        return tab {
             Section {
                 Toggle("End of the workday", isOn: binding(\.notifyEndOfDay))
                     .toggleStyle(.switch)
                 Toggle("Payday", isOn: binding(\.notifyPayday))
                     .toggleStyle(.switch)
-            } header: {
-                Text("Notifications")
             } footer: {
                 VStack(alignment: .leading, spacing: 6) {
-                    footer("Sent while the app is running, including when only the menu bar item is showing.")
+                    footer("Sent while Millisalary is running, even with its window closed. Quitting the app stops them.")
                     if notifications.authorization == .denied && (settings.notifyEndOfDay || settings.notifyPayday) {
                         footer("Notifications are turned off for Millisalary in System Settings.")
                         Button("Open Notification Settings…") {
@@ -144,44 +214,17 @@ struct SettingsView: View {
                     }
                 }
             }
-
-            Section {
-                Toggle("Show in menu bar", isOn: binding(\.showInMenuBar))
-                    .toggleStyle(.switch)
-                Picker("Amount", selection: binding(\.menuBarAmount)) {
-                    Text("Today").tag(MenuBarAmount.day)
-                    Text("Selected period").tag(MenuBarAmount.selected)
-                }
-                .disabled(!settings.showInMenuBar)
-            } header: {
-                Text("Menu bar")
-            } footer: {
-                footer("Shows your earnings next to an icon in the macOS menu bar, even when the window is closed.")
-            }
-
-            Section {
-                DialFactsPreview()
-                // The chosen facts first, in their order, then the rest
-                ForEach(settings.dialFacts + DialFact.allCases.filter { !settings.dialFacts.contains($0) }, id: \.self) { fact in
-                    dialFactRow(fact, chosen: settings.dialFacts)
-                }
-            } header: {
-                Text("At a Glance")
-            } footer: {
-                footer("Up to four show under the dial on every period, in this order. Drag a checked row to move it.")
-            }
-
-            Section {
-                Picker("Appearance", selection: binding(\.theme)) {
-                    Text("System").tag(Theme.system)
-                    Text("Light").tag(Theme.light)
-                    Text("Dark").tag(Theme.dark)
-                }
-            } footer: {
-                footer("System follows the macOS appearance.")
-            }
         }
-        .formStyle(.grouped)
+    }
+
+    /// A tab's grouped Form, as tall as its sections, so the window takes
+    /// each tab's height
+    private func tab(@ViewBuilder _ content: () -> some View) -> some View {
+        Form(content: content)
+            .formStyle(.grouped)
+            .scrollDisabled(true)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(width: 500)
     }
 
     // MARK: - Bindings
@@ -244,6 +287,18 @@ struct SettingsView: View {
         } set: { date in
             let time = TimeOfDay(pickerDate: date)
             update { apply(&$0, time) }
+        }
+    }
+
+    /// A time picker with its label beside it, centred: in a Form sized to
+    /// its content (`tab`) a DatePicker's own label rose to the top of a
+    /// taller row, in LabeledContent too
+    private func timeRow(_ title: String, _ selection: Binding<Date>) -> some View {
+        HStack {
+            Text(title)
+            Spacer()
+            DatePicker(title, selection: selection, displayedComponents: .hourAndMinute)
+                .labelsHidden()
         }
     }
 
@@ -407,7 +462,7 @@ private struct DialFactSample: View {
     }
 }
 
-/// The figures for Settings' At a Glance, worked out when the pane shows,
+/// The figures for Settings' At a Glance, worked out when the tab shows,
 /// when the settings or the rate change, and once a minute, so what changes
 /// over the day (earned today, the days to payday) doesn't go stale. Not on
 /// the window's 100 ms ticks: every row worked the earnings out ten times a

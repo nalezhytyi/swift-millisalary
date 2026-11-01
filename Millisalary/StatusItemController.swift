@@ -11,6 +11,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private let store: SettingsStore
     private let rates: ExchangeRateStore
     private let open: (Pane?) -> Void
+    private let openSettings: () -> Void
     private let checkForUpdates: () -> Void
     private let menuOpened: () -> Void
     private let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -23,12 +24,14 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         store: SettingsStore,
         rates: ExchangeRateStore,
         open: @escaping (Pane?) -> Void,
+        openSettings: @escaping () -> Void,
         checkForUpdates: @escaping () -> Void,
         menuOpened: @escaping () -> Void
     ) {
         self.store = store
         self.rates = rates
         self.open = open
+        self.openSettings = openSettings
         self.checkForUpdates = checkForUpdates
         self.menuOpened = menuOpened
         super.init()
@@ -109,7 +112,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             menu.addItem(.separator())
         }
         menu.addItem(item("Open Millisalary", #selector(openWindow)))
-        menu.addItem(item("Settings…", #selector(openSettings)))
+        menu.addItem(item("Settings…", #selector(showSettings)))
         menu.addItem(.separator())
         menu.addItem(item("Check for Updates…", #selector(checkUpdates)))
         menu.addItem(NSMenuItem(
@@ -126,7 +129,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     }
 
     @objc private func openWindow() { open(nil) }
-    @objc private func openSettings() { open(.settings) }
+    @objc private func showSettings() { openSettings() }
     @objc private func openBreakdown() { open(.breakdown) }
     @objc private func checkUpdates() { checkForUpdates() }
 
