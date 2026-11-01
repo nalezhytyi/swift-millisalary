@@ -286,17 +286,21 @@ public struct EarningsModel: Sendable {
     }
 
     /// countBusinessDaysBeforeDate: Mon-Fri from `start`'s day up to, not
-    /// including, `end`'s
+    /// including, `end`'s. Counted from the number of days and the weekday
+    /// the first one is, rather than stepping through them one by one: a
+    /// tick of the window asks for it up to eight times
     private func businessDays(from start: Date, before end: Date) -> Int {
+        let startDay = calendar.startOfDay(for: start)
         let endDay = calendar.startOfDay(for: end)
-        var count = 0
-        var date = calendar.startOfDay(for: start)
+        guard startDay < endDay else { return 0 }
 
-        while date < endDay {
-            if isBusinessDay(date) { count += 1 }
-            date = adding(days: 1, to: date)
+        let days = calendar.dateComponents([.day], from: startDay, to: endDay).day!
+        let first = weekday(startDay)
+        var count = days / 7 * 5
+        for offset in 0..<days % 7 {
+            let day = (first + offset) % 7
+            if day != 0 && day != 6 { count += 1 }
         }
-
         return count
     }
 

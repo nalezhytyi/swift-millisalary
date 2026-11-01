@@ -206,9 +206,11 @@ private func bool(_ value: Any) -> Bool? {
     return number.boolValue
 }
 
+/// Three capital letters, a currency code's shape
 private func currency(_ value: Any) -> String? {
     guard let string = value as? String,
-          string.wholeMatch(of: /[A-Z]{3}/) != nil
+          string.utf8.count == 3,
+          string.utf8.allSatisfy({ (UInt8(ascii: "A")...UInt8(ascii: "Z")).contains($0) })
     else { return nil }
     return string
 }
@@ -226,9 +228,12 @@ private func facts(_ value: Any) -> [DialFact]? {
     return Array(facts.prefix(DialFact.maximum))
 }
 
+/// "HH:mm" within a day, 00:00 to 23:59, or "" for a cleared time. A time
+/// read with its hour or minute out of range rolls over, so it no longer
+/// reads the same
 private func time(_ value: Any) -> String? {
     guard let string = value as? String,
-          string.isEmpty || string.wholeMatch(of: /(?:[01][0-9]|2[0-3]):[0-5][0-9]/) != nil
+          string.isEmpty || TimeOfDay(parsing: string)?.formatted == string
     else { return nil }
     return string
 }

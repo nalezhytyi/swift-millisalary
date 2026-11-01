@@ -50,3 +50,40 @@ private let thursdayMorning = local(.gregorian).date(
     #expect(keys == ["end_of_day:2026-10-28", "end_of_day:2026-10-29"])
     #expect(hebrew.scheduledNotifications(around: thursdayMorning, settings: settings).map(\.key) != keys)
 }
+
+// The paid days are counted from the number of days since the 1st and the
+// weekday it was, rather than by stepping through them as calculations.ts
+// does. Every day of two years, at noon, against that stepping, in zones
+// whose DST changes come at midnight (Santiago: the day starts at 01:00)
+// or at night (Kyiv, New York), which the parity fixture doesn't all have
+@Test(arguments: ["America/Santiago", "Europe/Kyiv", "America/New_York", "Asia/Kolkata"])
+func paidDaysCountedLikeTheSteppingTheyReplace(zone: String) {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = TimeZone(identifier: zone)!
+    let model = EarningsModel(calendar: calendar)
+
+    /// countBusinessDaysBeforeDate, a day at a time
+    func stepped(before date: Date) -> Int {
+        let end = calendar.startOfDay(for: date)
+        var day = calendar.dateInterval(of: .month, for: date)!.start
+        var count = 0
+        while day < end {
+            let weekday = calendar.component(.weekday, from: day)
+            if weekday != 1 && weekday != 7 { count += 1 }
+            day = calendar.date(byAdding: .day, value: 1, to: day)!
+        }
+        return count
+    }
+
+    var day = calendar.date(from: DateComponents(year: 2026, month: 1, day: 1, hour: 12))!
+    let end = calendar.date(from: DateComponents(year: 2028, month: 1, day: 1))!
+    while day < end {
+        let weekday = calendar.component(.weekday, from: day)
+        let isWeekday = weekday != 1 && weekday != 7
+        let before = Double(stepped(before: day))
+        // Paid exactly while the days before it are fewer than the month's
+        #expect(model.isScheduledDay(day, workingDays: before + 1) == isWeekday, "\(day)")
+        #expect(!model.isScheduledDay(day, workingDays: max(1, before)) || before == 0, "\(day)")
+        day = calendar.date(byAdding: .day, value: 1, to: day)!
+    }
+}
