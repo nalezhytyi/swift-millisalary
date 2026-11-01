@@ -250,6 +250,15 @@ struct TitlebarHider: NSViewRepresentable {
                 if hidesTitlebar != oldValue { apply(animated: true) }
             }
         }
+        /// The views it faded out, each with the opacity to give back:
+        /// AppKit keeps some of the titlebar's views transparent itself
+        private var faded: [(view: NSView, alpha: CGFloat)] = []
+
+        override func viewWillMove(toWindow newWindow: NSWindow?) {
+            // Leaves the titlebar as it found it
+            if newWindow !== window { restore(animated: false) }
+            super.viewWillMove(toWindow: newWindow)
+        }
 
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
@@ -257,14 +266,38 @@ struct TitlebarHider: NSViewRepresentable {
         }
 
         private func apply(animated: Bool) {
+            if hidesTitlebar {
+                fadeOut(animated: animated)
+            } else {
+                restore(animated: animated)
+            }
+        }
+
+        private func fadeOut(animated: Bool) {
             guard let window, let titlebar = window.standardWindowButton(.closeButton)?.superview else { return }
             let buttons = [NSWindow.ButtonType.closeButton, .miniaturizeButton, .zoomButton]
                 .compactMap { window.standardWindowButton($0) }
+            let views = titlebar.subviews.filter { view in
+                view.alphaValue > 0 && !buttons.contains { $0 === view } && !faded.contains { $0.view === view }
+            }
+            faded += views.map { ($0, $0.alphaValue) }
 
             NSAnimationContext.runAnimationGroup { context in
                 context.duration = animated ? 0.2 : 0
-                for view in titlebar.subviews where !buttons.contains(where: { $0 === view }) {
-                    view.animator().alphaValue = hidesTitlebar ? 0 : 1
+                for view in views {
+                    view.animator().alphaValue = 0
+                }
+            }
+        }
+
+        private func restore(animated: Bool) {
+            guard !faded.isEmpty else { return }
+            let views = faded
+            faded = []
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = animated ? 0.2 : 0
+                for (view, alpha) in views {
+                    view.animator().alphaValue = alpha
                 }
             }
         }
