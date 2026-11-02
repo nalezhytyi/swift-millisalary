@@ -1109,6 +1109,17 @@
         }
       }
     },
+    "Your settings are stored on this Mac." : {
+      "comment" : "Under Start Earning in the setup form. Only where the settings are kept: analytics still sends some of them, so it mustn't say nothing leaves the Mac",
+      "localizations" : {
+        "uk" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Налаштування зберігаються на цьому Mac."
+          }
+        }
+      }
+    },
     "day left" : {
       "localizations" : {
         "uk" : {

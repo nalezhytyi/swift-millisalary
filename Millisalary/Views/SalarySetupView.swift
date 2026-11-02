@@ -154,6 +154,11 @@ struct SalarySetupView: View {
                 .controlSize(.large)
                 .keyboardShortcut(.defaultAction)
                 .disabled(pending == nil)
+            // Where they're stored, nothing more: analytics still sends
+            // the salary (AnalyticsEvent.settingsChanges)
+            Label("Your settings are stored on this Mac.", systemImage: "lock.fill")
+                .foregroundStyle(.secondary)
+                .font(.callout)
             Button {
                 analytics.track("settings_opened", ["source": .string(ActionSource.setupHint.rawValue)])
                 openSettings()
