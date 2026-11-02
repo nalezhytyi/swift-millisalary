@@ -399,7 +399,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Решта — у [налаштуваннях](millisalary-settings:)."
+            "value" : "Більше параметрів у [налаштуваннях](millisalary-settings:)."
           }
         }
       }
