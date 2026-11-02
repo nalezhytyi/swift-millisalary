@@ -10,6 +10,7 @@ struct SalarySetupView: View {
     @Environment(Analytics.self) private var analytics
     @Environment(\.openSettings) private var openSettings
     @Environment(SplashModel.self) private var splash
+    @Environment(Navigation.self) private var navigation
 
     @State private var draft = MillisalaryCore.Settings.defaults
     @State private var salaryText = ""
@@ -45,9 +46,12 @@ struct SalarySetupView: View {
         return text
     }
 
-    private var salary: Double? {
+    /// The draft with the typed salary, once it's one that starts earning
+    private var pending: MillisalaryCore.Settings? {
         guard let salary = try? Double(salaryText, format: .number), salary > 0 else { return nil }
-        return salary
+        var pending = draft
+        pending.monthlySalary = salary
+        return pending
     }
 
     var body: some View {
@@ -64,6 +68,8 @@ struct SalarySetupView: View {
             draft = store.settings
             salaryFocused = true
         }
+        .onChange(of: pending) { _, pending in navigation.setupDraft = pending }
+        .onDisappear { navigation.setupDraft = nil }
     }
 
     private var form: some View {
@@ -147,7 +153,7 @@ struct SalarySetupView: View {
                 .buttonStyle(.borderedProminent)
                 .controlSize(.large)
                 .keyboardShortcut(.defaultAction)
-                .disabled(salary == nil)
+                .disabled(pending == nil)
             Button {
                 analytics.track("settings_opened", ["source": .string(ActionSource.setupHint.rawValue)])
                 openSettings()
@@ -181,13 +187,19 @@ struct SalarySetupView: View {
 
     /// Saves the draft; with a salary stored the pane turns into the dial
     private func start() {
-        guard let salary else {
+        guard let pending else {
             NSSound.beep()
             return
         }
+        Self.save(pending, in: store, analytics: analytics)
+    }
+
+    /// Stores what the form edits: the salary and the fields it shows. Start
+    /// Earning does, and Settings with `Navigation.setupDraft`
+    static func save(_ draft: MillisalaryCore.Settings, in store: SettingsStore, analytics: Analytics) {
         let before = store.settings
         store.update { settings in
-            settings.monthlySalary = salary
+            settings.monthlySalary = draft.monthlySalary
             settings.monthlySalaryCurrency = draft.monthlySalaryCurrency
             settings.earningsCurrency = draft.earningsCurrency
             settings.startHour = draft.startHour

@@ -19,6 +19,7 @@ struct SettingsView: View {
     @Environment(NotificationController.self) private var notifications
     @Environment(LoginItemController.self) private var loginItem
     @Environment(Analytics.self) private var analytics
+    @Environment(\.controlActiveState) private var activeState
 
     /// What the salary field shows, the stored salary between edits
     @State private var salaryText = ""
@@ -50,6 +51,15 @@ struct SettingsView: View {
             notificationsTab
                 .tabItem { Label("Notifications", systemImage: "bell") }
                 .tag(SettingsTab.notifications)
+        }
+        // A salary typed into the setup form is stored when this window
+        // comes to the front, however it's brought there (the form's link,
+        // the sidebar's gear, ⌘,, a click on the window), rather than
+        // waiting for Start Earning while Settings shows the stored 0
+        .onChange(of: activeState, initial: true) { _, state in
+            guard state == .key, let draft = navigation.setupDraft else { return }
+            navigation.setupDraft = nil
+            SalarySetupView.save(draft, in: store, analytics: analytics)
         }
     }
 

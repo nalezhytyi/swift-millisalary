@@ -82,6 +82,11 @@ final class Navigation {
     /// Set when the app was started at login: the window SwiftUI opens at
     /// launch closes again at once
     var hideOnLaunch = false
+    /// The setup form's fields while they hold a salary that would start
+    /// earning. Settings stores them when its window comes to the front
+    /// (SalarySetupView.save), so what was typed there isn't left behind
+    /// for Settings' stored 0
+    var setupDraft: MillisalaryCore.Settings?
     /// The last `toggleSidebar`'s source and the visibility it set. SwiftUI's
     /// own button (and dragging the sidebar shut) change `columnVisibility`
     /// without saying so. A toggle made while the window is closed (⌃⌘S)
