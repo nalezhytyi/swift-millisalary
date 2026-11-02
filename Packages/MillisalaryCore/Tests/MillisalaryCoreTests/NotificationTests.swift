@@ -135,7 +135,7 @@ private let halfPastSeven = fivePM.addingTimeInterval(2.5 * 3600)
     let ukrainian = Locale(identifier: "uk")
     let endOfDayUK = NotificationContent(kind: .endOfDay, earnings: earnings, currency: "UAH", locale: ukrainian)
     #expect(endOfDayUK.title == "Робочий день завершено")
-    #expect(endOfDayUK.body == "Ви заробили 1 000,00 ₴.")
+    #expect(endOfDayUK.body == "Сьогодні зароблено 1 000,00 ₴.")
 
     let paydayUK = NotificationContent(kind: .payday, earnings: earnings, currency: "UAH", locale: ukrainian)
     #expect(paydayUK.title == "День виплати")

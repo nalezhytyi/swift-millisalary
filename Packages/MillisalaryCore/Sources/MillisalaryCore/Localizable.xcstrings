@@ -84,7 +84,7 @@
         "uk" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Ви заробили %@."
+            "value" : "Сьогодні зароблено %@."
           }
         }
       }

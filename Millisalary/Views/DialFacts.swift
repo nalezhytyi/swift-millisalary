@@ -53,7 +53,7 @@ struct DialFactFigures {
     func sample(_ fact: DialFact) -> Text {
         switch fact {
         case .leftToEarn: Text("\(value(fact)) \(caption)")
-        case .exchangeRate: Text(verbatim: rate.map { "1 \(pair.from) = \($0) \(pair.to)" } ?? "—")
+        case .exchangeRate: Text(verbatim: rate.map { "1 \(pair.from) = \($0) \(pair.to)" } ?? "–")
         default: value(fact)
         }
     }
@@ -76,7 +76,7 @@ struct DialFactFigures {
         case .paycheck: return money(earnings.nextPayday.amount)
         case .leftToEarn: return money(max(0, earnings[period].total - earnings[period].earned))
         case .earnedToday: return money(earnings.day.earned)
-        case .exchangeRate: return Text(verbatim: rate.map { "\($0) \(pair.to)" } ?? "—")
+        case .exchangeRate: return Text(verbatim: rate.map { "\($0) \(pair.to)" } ?? "–")
         }
     }
 
