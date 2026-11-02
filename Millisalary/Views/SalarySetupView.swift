@@ -51,6 +51,22 @@ struct SalarySetupView: View {
     }
 
     var body: some View {
+        GeometryReader { proxy in
+            form
+                // The card at most 500 pt wide, as margins inside the Form
+                // rather than a frame around it: the toolbar's band over a
+                // scroll view is as wide as the scroll view, and an
+                // inactive window drew it 500 pt wide over a wider pane
+                .contentMargins(.horizontal, max(0, (proxy.size.width - 500) / 2), for: .scrollContent)
+        }
+        .defaultScrollAnchor(.center)
+        .onAppear {
+            draft = store.settings
+            salaryFocused = true
+        }
+    }
+
+    private var form: some View {
         Form {
             Section {
                 LabeledContent("Monthly salary") {
@@ -92,13 +108,6 @@ struct SalarySetupView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(maxWidth: 500)
-        .frame(maxWidth: .infinity)
-        .defaultScrollAnchor(.center)
-        .onAppear {
-            draft = store.settings
-            salaryFocused = true
-        }
     }
 
     private var header: some View {
